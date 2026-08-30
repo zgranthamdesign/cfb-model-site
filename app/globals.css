@@ -38,11 +38,61 @@ body {
 
 header.page-header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 32px;
   padding-bottom: 24px;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.tabs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.search-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.search-input {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px 8px 32px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  width: 220px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.last-synced {
+  font-size: 11px;
+  color: var(--text-faint);
 }
 
 h1 {
@@ -62,7 +112,6 @@ h1 {
 .tabs {
   display: inline-flex;
   gap: 2px;
-  margin-bottom: 20px;
   background: var(--bg-elevated);
   padding: 3px;
   border-radius: 10px;
@@ -557,6 +606,34 @@ th {
 
 .stats-panel-close:hover {
   color: var(--text);
+}
+
+.team-note {
+  background: var(--accent-dim);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  margin: 12px 0 16px;
+}
+
+.team-note ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.team-note li {
+  margin: 3px 0;
+}
+
+.team-note li:first-child {
+  margin-top: 0;
+}
+
+.team-note li:last-child {
+  margin-bottom: 0;
 }
 
 .stats-meta {

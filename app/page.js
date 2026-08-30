@@ -59,6 +59,14 @@ function fmtDateHeading(iso) {
   return `${weekday}, ${month} ${day}${suffix}`;
 }
 
+function fmtSyncTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${dateStr}, ${timeStr}`;
+}
+
 function dateKey(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -224,6 +232,16 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
 
         {loading && <div className="loading">Loading stats...</div>}
 
+        {!loading && data?.note && (
+          <div className="team-note">
+            <ul>
+              {data.note.split("\n").map(line => line.trim()).filter(Boolean).map((line, i) => (
+                <li key={i}>{line.replace(/^[-•]\s*/, "")}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {!loading && data && !data.efficiency && (
           <div className="empty">No stats available yet for {team}.</div>
         )}
@@ -299,6 +317,8 @@ export default function Home() {
   const [conference, setConference] = useState("All");
   const [linesData, setLinesData] = useState([]);
   const [totalTeams, setTotalTeams] = useState(null);
+  const [lastSynced, setLastSynced] = useState(null);
+  const [search, setSearch] = useState("");
   const [ratingsData, setRatingsData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statsTeam, setStatsTeam] = useState(null);
@@ -329,6 +349,7 @@ export default function Home() {
       .then(d => {
         setLinesData(d.rows || []);
         setTotalTeams(d.totalTeams || null);
+        setLastSynced(d.lastSynced || null);
       })
       .finally(() => setLoading(false));
   }, [tab, week]);
@@ -358,9 +379,15 @@ export default function Home() {
   }, [tab, linesData, ratingsData]);
 
   const filteredLines = useMemo(() => {
-    if (conference === "All") return linesData;
-    return linesData.filter(r => r.conference === conference);
-  }, [linesData, conference]);
+    let rows = conference === "All" ? linesData : linesData.filter(r => r.conference === conference);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(r =>
+        r.home_team?.toLowerCase().includes(q) || r.away_team?.toLowerCase().includes(q)
+      );
+    }
+    return rows;
+  }, [linesData, conference, search]);
 
   const filteredRatings = useMemo(() => {
     if (conference === "All") return ratingsData;
@@ -388,25 +415,48 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="tabs">
-        <button
-          className={`tab ${tab === "lines" ? "active" : ""}`}
-          onClick={() => setTab("lines")}
-        >
-          Games
-        </button>
-        <button
-          className={`tab ${tab === "ratings" ? "active" : ""}`}
-          onClick={() => setTab("ratings")}
-        >
-          Power Ratings
-        </button>
-        <button
-          className={`tab ${tab === "record" ? "active" : ""}`}
-          onClick={() => setTab("record")}
-        >
-          Record
-        </button>
+      <div className="tabs-row">
+        <div className="tabs">
+          <button
+            className={`tab ${tab === "lines" ? "active" : ""}`}
+            onClick={() => setTab("lines")}
+          >
+            Games
+          </button>
+          <button
+            className={`tab ${tab === "ratings" ? "active" : ""}`}
+            onClick={() => setTab("ratings")}
+          >
+            Power Ratings
+          </button>
+          <button
+            className={`tab ${tab === "record" ? "active" : ""}`}
+            onClick={() => setTab("record")}
+          >
+            Record
+          </button>
+        </div>
+
+        {tab === "lines" && (
+          <div className="search-block">
+            <div className="search-input-wrapper">
+              <svg className="search-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.6" />
+                <line x1="13.6" y1="13.6" x2="17.5" y2="17.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search Games"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            {lastSynced && (
+              <div className="last-synced">Lines updated {fmtSyncTime(lastSynced)}</div>
+            )}
+          </div>
+        )}
       </div>
 
       {tab !== "record" && (
@@ -430,7 +480,7 @@ export default function Home() {
 
       {!loading && tab === "lines" && (
         filteredLines.length === 0 ? (
-          <div className="empty">No games found for this week/conference.</div>
+          <div className="empty">No games found for this week/conference/search.</div>
         ) : (
           gamesByDate.map(([key, rows]) => (
             <div key={key} className="date-group">

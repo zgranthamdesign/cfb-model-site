@@ -62,6 +62,14 @@ export async function GET(request) {
     return NextResponse.json({ error: "team not found" }, { status: 404 });
   }
 
+  const { data: noteRow } = await supabase
+    .from("team_notes")
+    .select("note")
+    .eq("team_id", teamRow.team_id)
+    .eq("season", season)
+    .maybeSingle();
+  const note = noteRow?.note || null;
+
   const { data: stats, error: statsError } = await supabase
     .from("team_weekly_stats")
     .select("*")
@@ -76,7 +84,7 @@ export async function GET(request) {
   }
 
   if (!stats) {
-    return NextResponse.json({ team: teamRow.school, stats: null });
+    return NextResponse.json({ team: teamRow.school, stats: null, note });
   }
 
   // Pull every team's stats for that same week so we can rank this
@@ -124,5 +132,6 @@ export async function GET(request) {
       composite: stats.talent_composite,
     },
     percentiles,
+    note,
   });
 }
