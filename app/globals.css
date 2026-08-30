@@ -311,6 +311,11 @@ select:focus {
   text-align: center;
 }
 
+.source-rank-total {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
 .team-logo-slot {
   display: inline-flex;
   align-items: center;

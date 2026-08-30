@@ -242,6 +242,36 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
           </div>
         )}
 
+        {!loading && data?.source_rankings && Object.values(data.source_rankings).some(Boolean) && (
+          <div className="stats-section">
+            <h3>Source Rankings</h3>
+            {[
+              ["our_model", "Our Model"],
+              ["sp_plus", "SP+"],
+              ["fpi", "FPI"],
+              ["elo", "Elo"],
+              ["srs", "SRS"],
+            ].map(([key, label]) => {
+              const r = data.source_rankings[key];
+              return (
+                <div className="stat-row" key={key}>
+                  <span className="stat-label">{label}</span>
+                  <span className="stat-row-right">
+                    {r ? (
+                      <>
+                        <span className="rank-badge" style={rankColors(r.rank, r.total) || undefined}>#{r.rank}</span>
+                        <span className="source-rank-total">of {r.total}</span>
+                      </>
+                    ) : (
+                      <span className="stat-value">—</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {!loading && data && !data.efficiency && (
           <div className="empty">No stats available yet for {team}.</div>
         )}

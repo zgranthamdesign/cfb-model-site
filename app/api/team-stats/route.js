@@ -43,6 +43,29 @@ function percentileOf(value, allValues, higherIsBetter) {
   return pct;
 }
 
+// Rank a team against the field for each individual rating source
+// (higher z-score = better, consistent with how the composite blend
+// treats them). Sources the team has no data for (e.g. SRS on 2025
+// fallback for some teams) come back as null.
+const SOURCE_FIELDS = {
+  our_model: "our_model_z",
+  sp_plus: "sp_plus_z",
+  fpi: "fpi_z",
+  elo: "elo_z",
+  srs: "srs_z",
+};
+
+function computeSourceRanks(allRatings, teamId) {
+  const result = {};
+  for (const [label, field] of Object.entries(SOURCE_FIELDS)) {
+    const valid = allRatings.filter(r => r[field] != null);
+    valid.sort((a, b) => b[field] - a[field]);
+    const idx = valid.findIndex(r => r.team_id === teamId);
+    result[label] = idx === -1 ? null : { rank: idx + 1, total: valid.length };
+  }
+  return result;
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const season = parseInt(searchParams.get("season") || "2026", 10);
@@ -70,6 +93,12 @@ export async function GET(request) {
     .maybeSingle();
   const note = noteRow?.note || null;
 
+  const { data: allRatings } = await supabase
+    .from("composite_ratings")
+    .select("team_id, our_model_z, sp_plus_z, fpi_z, elo_z, srs_z")
+    .eq("season", season);
+  const source_rankings = computeSourceRanks(allRatings || [], teamRow.team_id);
+
   const { data: stats, error: statsError } = await supabase
     .from("team_weekly_stats")
     .select("*")
@@ -84,7 +113,7 @@ export async function GET(request) {
   }
 
   if (!stats) {
-    return NextResponse.json({ team: teamRow.school, stats: null, note });
+    return NextResponse.json({ team: teamRow.school, stats: null, note, source_rankings });
   }
 
   // Pull every team's stats for that same week so we can rank this
@@ -133,5 +162,6 @@ export async function GET(request) {
     },
     percentiles,
     note,
+    source_rankings,
   });
 }
