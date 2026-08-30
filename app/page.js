@@ -154,6 +154,30 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
         </div>
       )}
 
+      <div className="game-card-divider" />
+
+      <div className="game-card-stat-row">
+        <span>
+          <span className="stat-label-meta">Market Spread:</span> <span className="game-card-stat-value">{row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}</span>
+          {row.market_spread_open_favorite != null && (
+            <span className="open-cell"> (Open {fmtHalf(row.market_spread_open_favorite)})</span>
+          )}
+          <BookBreakdown
+            team={row.market_favorite_team}
+            books={row.market_favorite_team === row.home_team ? row.home_books : row.away_books}
+          />
+        </span>
+      </div>
+
+      <div className="game-card-stat-row">
+        <span>
+          <span className="stat-label-meta">Market Total:</span> <span className="game-card-stat-value">{fmtHalf(row.market_total)}</span>
+          {row.market_total_open != null && (
+            <span className="open-cell"> (Open {fmtHalf(row.market_total_open)})</span>
+          )}
+        </span>
+      </div>
+
       {(row.show_spread_bet || row.show_total_bet) && (
         <div className="game-card-projection model-bet-line">
           <span className="stat-label-meta">Model Bet:</span>{" "}
@@ -188,30 +212,6 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
           )}
         </div>
       )}
-
-      <div className="game-card-divider" />
-
-      <div className="game-card-stat-row">
-        <span>
-          <span className="stat-label-meta">Market Spread:</span> <span className="game-card-stat-value">{row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}</span>
-          {row.market_spread_open_favorite != null && (
-            <span className="open-cell"> (Open {fmtHalf(row.market_spread_open_favorite)})</span>
-          )}
-          <BookBreakdown
-            team={row.market_favorite_team}
-            books={row.market_favorite_team === row.home_team ? row.home_books : row.away_books}
-          />
-        </span>
-      </div>
-
-      <div className="game-card-stat-row">
-        <span>
-          <span className="stat-label-meta">Market Total:</span> <span className="game-card-stat-value">{fmtHalf(row.market_total)}</span>
-          {row.market_total_open != null && (
-            <span className="open-cell"> (Open {fmtHalf(row.market_total_open)})</span>
-          )}
-        </span>
-      </div>
 
       {!row.completed && row.key_number_tier === "KEY++" && row.key_number_margin != null && (
         <div className="key-badge">Key Number Crossed: {row.key_number_margin}</div>
