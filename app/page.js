@@ -1,181 +1,334 @@
 "use client";
 
-import { useEffect, useState, useMemo, Fragment } from "react";
+import { useEffect, useState, useMemo } from "react";
 
-function DiffCell({ diff, rowSpan }) {
-  if (diff === null || diff === undefined || isNaN(diff)) return <td rowSpan={rowSpan}>—</td>;
+function fmt(n, digits = 1) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return n.toFixed(digits);
+}
 
-  if (diff === 0) {
-    return (
-      <td rowSpan={rowSpan}>
-        <span className="diff-badge diff-neutral">0.0</span>
-      </td>
-    );
+function fmtSigned(n, digits = 1) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return (n > 0 ? "+" : "") + n.toFixed(digits);
+}
+
+// Final scores are whole numbers, no decimals.
+function fmtInt(n) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return Math.round(n).toString();
+}
+
+// Market lines (spread/total) trade in half-point increments.
+function roundHalf(n) {
+  return Math.round(n * 2) / 2;
+}
+
+function fmtHalf(n) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  const r = roundHalf(n);
+  return Number.isInteger(r) ? r.toString() : r.toFixed(1);
+}
+
+function fmtHalfSigned(n) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  const r = roundHalf(n);
+  const s = Number.isInteger(r) ? Math.abs(r).toString() : Math.abs(r).toFixed(1);
+  return (r > 0 ? "+" : r < 0 ? "-" : "") + s;
+}
+
+function fmtPct(n) {
+  if (n === null || n === undefined) return "—";
+  return Math.round(n * 100) + "%";
+}
+
+function fmtTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function fmtDateHeading(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+  const month = d.toLocaleDateString("en-US", { month: "long" });
+  const day = d.getDate();
+  const suffix = (day % 10 === 1 && day !== 11) ? "st" :
+                 (day % 10 === 2 && day !== 12) ? "nd" :
+                 (day % 10 === 3 && day !== 13) ? "rd" : "th";
+  return `${weekday}, ${month} ${day}${suffix}`;
+}
+
+function dateKey(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+// Green (best) -> yellow (middle) -> red (worst), using hue interpolation.
+// pct=0 -> hue 120 (green), pct=0.5 -> hue 60 (yellow), pct=1 -> hue 0 (red).
+function rankColors(rank, total) {
+  if (rank == null || !total || total <= 1) return null;
+  const pct = (rank - 1) / (total - 1);
+  const hue = 120 * (1 - pct);
+  return {
+    background: `hsl(${hue}, 70%, 90%)`,
+    color: `hsl(${hue}, 70%, 28%)`,
+  };
+}
+
+function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, onSelect }) {
+  const rankStyle = rankColors(rank, totalTeams);
+  return (
+    <div className="game-card-team-row" onClick={() => onSelect && onSelect(name)}>
+      <div className="game-card-team-info">
+        <span className="game-card-rank" style={rank != null ? (rankStyle || undefined) : undefined}>
+          {rank != null ? `#${rank}` : ""}
+        </span>
+        <span className="team-logo-slot">
+          {logo && <img src={logo} alt="" className="team-logo" />}
+        </span>
+        <span className="game-card-team-name">{name}</span>
+      </div>
+      {completed && finalScore != null ? (
+        <span className="game-card-score">
+          <span className="score-final">{fmtInt(finalScore)}</span>
+          {score != null && <span className="score-proj">({fmt(score)})</span>}
+        </span>
+      ) : (
+        score != null && <span className="game-card-score"><span className="score-final">{fmt(score)}</span></span>
+      )}
+    </div>
+  );
+}
+
+function GameCard({ row, totalTeams, onSelectTeam }) {
+  return (
+    <div className="game-card">
+      <div className="game-card-header-row">
+        <div className="game-card-meta">{fmtTime(row.start_date)}</div>
+        <div className="game-card-score-label">{row.completed ? "Final" : "Proj"}</div>
+      </div>
+
+      <div className="game-card-teams">
+        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.away_final_score} completed={row.completed} onSelect={onSelectTeam} />
+        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.home_final_score} completed={row.completed} onSelect={onSelectTeam} />
+      </div>
+
+      <div className="game-card-divider" />
+
+      {row.bet_team && (
+        <div className="game-card-projection">
+          <span className="stat-label-meta">Model:</span> <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
+          {row.ats_result && (
+            <span className={
+              row.ats_result === "COVER" ? "ats-badge ats-cover" :
+              row.ats_result === "NO_COVER" ? "ats-badge ats-miss" :
+              "ats-badge ats-push"
+            }>
+              {row.ats_result === "COVER" ? "✓" : row.ats_result === "NO_COVER" ? "✗" : "Push"}
+            </span>
+          )}
+          {row.total_pick && (
+            <>
+              {" / "}<strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
+              {row.total_result && (
+                <span className={
+                  row.total_result === "COVER" ? "ats-badge ats-cover" :
+                  row.total_result === "NO_COVER" ? "ats-badge ats-miss" :
+                  "ats-badge ats-push"
+                }>
+                  {row.total_result === "COVER" ? "✓" : row.total_result === "NO_COVER" ? "✗" : "Push"}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="game-card-divider" />
+
+      <div className="game-card-stat-row">
+        <span>
+          <span className="stat-label-meta">Spread:</span> <span className="game-card-stat-value">{row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}</span>
+          {row.market_spread_open_favorite != null && (
+            <span className="open-cell"> (Open {fmtHalf(row.market_spread_open_favorite)})</span>
+          )}
+        </span>
+      </div>
+
+      <div className="game-card-stat-row">
+        <span>
+          <span className="stat-label-meta">Total:</span> <span className="game-card-stat-value">{fmtHalf(row.market_total)}</span>
+          {row.market_total_open != null && (
+            <span className="open-cell"> (Open {fmtHalf(row.market_total_open)})</span>
+          )}
+        </span>
+      </div>
+
+      {!row.completed && row.key_number_tier === "KEY++" && row.key_number_margin != null && (
+        <div className="key-badge">Key Number Crossed: {row.key_number_margin}</div>
+      )}
+    </div>
+  );
+}
+
+// Green (great) -> yellow (average) -> red (poor), for stat percentiles.
+// pct is 0-1, already direction-adjusted so 1 always means "better".
+function percentileColor(pct) {
+  if (pct == null) return null;
+  const hue = 120 * pct;
+  return {
+    background: `hsl(${hue}, 70%, 90%)`,
+    color: `hsl(${hue}, 70%, 28%)`,
+  };
+}
+
+function ordinal(n) {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
   }
+}
 
-  const isPos = diff > 0;
-  const magnitude = Math.min(Math.abs(diff) / 15, 1); // 15+ points = full intensity
-  const rgb = isPos ? "74, 222, 128" : "248, 113, 113";
-  const bg = `rgba(${rgb}, ${(0.10 + magnitude * 0.35).toFixed(2)})`;
-  const textColor = isPos ? "var(--positive)" : "var(--negative)";
-  const sign = isPos ? "+" : "";
-
+function StatRow({ label, value, percentile }) {
+  const style = percentileColor(percentile);
   return (
-    <td rowSpan={rowSpan}>
-      <span className="diff-badge" style={{ backgroundColor: bg, color: textColor }}>
-        {sign}{diff.toFixed(1)}
-      </span>
-    </td>
-  );
-}
-
-function TeamCell({ name, logo }) {
-  return (
-    <td>
-      <div className="team-cell">
-        {logo && <img src={logo} alt="" className="team-logo" />}
-        {name}
-      </div>
-    </td>
-  );
-}
-
-const TAG_COLORS = {
-  GREEN: "#16a34a",
-  YELLOW: "#86efac",
-  RED: "#f87171",
-  SIGN_FLIP: "#a78bfa",
-  NONE: "#52525b",
-};
-
-function TagDot({ tag, note }) {
-  if (!tag) return <td>—</td>;
-  const color = TAG_COLORS[tag] || TAG_COLORS.NONE;
-  return (
-    <td title={note || tag}>
-      <span
-        style={{
-          display: "inline-block",
-          width: "10px",
-          height: "10px",
-          borderRadius: "50%",
-          backgroundColor: color,
-        }}
-      />
-    </td>
-  );
-}
-
-function BestBetCell({ bet, note, rowSpan }) {
-  if (!bet) return <td rowSpan={rowSpan}>—</td>;
-  const bg = bet.tag === "GREEN" ? "rgba(22, 163, 74, 0.18)" : "rgba(134, 239, 172, 0.18)";
-  const color = bet.tag === "GREEN" ? "#16a34a" : "#86efac";
-  return (
-    <td rowSpan={rowSpan} title={note || bet.tag}>
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-          padding: "4px 10px",
-          borderRadius: "6px",
-          backgroundColor: bg,
-          color: color,
-          fontWeight: 600,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {bet.logo && <img src={bet.logo} alt="" style={{ width: "16px", height: "16px" }} />}
-        <span>{bet.team}</span>
-        <span>{fmtSigned(bet.line)}</span>
-      </div>
-    </td>
-  );
-}
-
-function fmt(n) {
-  if (n === null || n === undefined) return "—";
-  return n.toFixed(1);
-}
-
-function fmtSigned(n) {
-  if (n === null || n === undefined) return "—";
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(1)}`;
-}
-
-function fmtDate(dateStr) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}
-
-function fmtSyncTime(isoString) {
-  if (!isoString) return null;
-  const then = new Date(isoString);
-  const now = new Date();
-  const diffMs = now - then;
-  const diffMin = Math.round(diffMs / 60000);
-
-  if (diffMin < 1) return "Updated just now";
-  if (diffMin < 60) return `Updated ${diffMin} min ago`;
-  const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `Updated ${diffHr} hr ago`;
-  const diffDay = Math.round(diffHr / 24);
-  return `Updated ${diffDay}d ago`;
-}
-
-function booksTooltip(books) {
-  if (!books || Object.keys(books).length === 0) return null;
-  return Object.entries(books).sort((a, b) => a[0].localeCompare(b[0]));
-}
-
-function BookTooltip({ entries, children }) {
-  if (!entries) return children;
-  return (
-    <span className="book-tooltip-wrapper">
-      {children}
-      <span className="book-tooltip-content">
-        {entries.map(([book, spread]) => (
-          <span key={book} className="book-tooltip-row">
-            <span>{book}</span>
-            <span>{fmtSigned(spread)}</span>
+    <div className="stat-row">
+      <span className="stat-label">{label}</span>
+      <span className="stat-row-right">
+        <span className="stat-value">{value}</span>
+        {percentile != null && (
+          <span className="percentile-badge" style={style}>
+            {ordinal(Math.round(percentile * 100))}
           </span>
-        ))}
+        )}
       </span>
-    </span>
+    </div>
+  );
+}
+
+function TeamStatsPanel({ team, data, loading, onClose }) {
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="stats-panel" onClick={e => e.stopPropagation()}>
+        <div className="stats-panel-header">
+          {data?.logo_url && <img src={data.logo_url} alt="" className="team-logo" />}
+          <h2>{team}</h2>
+          <button className="stats-panel-close" onClick={onClose}>×</button>
+        </div>
+
+        {loading && <div className="loading">Loading stats...</div>}
+
+        {!loading && data && !data.efficiency && (
+          <div className="empty">No stats available yet for {team}.</div>
+        )}
+
+        {!loading && data && data.efficiency && (
+          <div className="stats-panel-body">
+            <div className="stats-meta">
+              {data.conference && <span className="conf-badge">{data.conference}</span>}
+              {data.week != null && <span>Through Week {data.week} ({data.games_played} game{data.games_played === 1 ? "" : "s"})</span>}
+            </div>
+
+            <div className="stats-col-header">
+              <span></span>
+              <span className="stats-col-header-right">
+                <span className="stats-col-label-value">Value</span>
+                <span className="stats-col-label-pct">Pctl</span>
+              </span>
+            </div>
+
+            <div className="stats-section">
+              <h3>Efficiency</h3>
+              <StatRow label="Off. EPA/play" value={fmt(data.efficiency.off_epa_per_play, 2)} percentile={data.percentiles?.off_epa_per_play} />
+              <StatRow label="Def. EPA/play" value={fmt(data.efficiency.def_epa_per_play, 2)} percentile={data.percentiles?.def_epa_per_play} />
+              <StatRow label="Off. Success Rate" value={fmtPct(data.efficiency.off_success_rate)} percentile={data.percentiles?.off_success_rate} />
+              <StatRow label="Def. Success Rate" value={fmtPct(data.efficiency.def_success_rate)} percentile={data.percentiles?.def_success_rate} />
+              <StatRow label="Off. Explosiveness" value={fmt(data.efficiency.off_explosiveness, 2)} percentile={data.percentiles?.off_explosiveness} />
+              <StatRow label="Def. Explosiveness" value={fmt(data.efficiency.def_explosiveness, 2)} percentile={data.percentiles?.def_explosiveness} />
+              <StatRow label="Off. PPA" value={fmt(data.efficiency.off_ppa)} percentile={data.percentiles?.off_ppa} />
+              <StatRow label="Def. PPA" value={fmt(data.efficiency.def_ppa)} percentile={data.percentiles?.def_ppa} />
+              <StatRow label="Off. EPA (Rush)" value={fmt(data.efficiency.off_epa_rush, 2)} percentile={data.percentiles?.off_epa_rush} />
+              <StatRow label="Off. EPA (Pass)" value={fmt(data.efficiency.off_epa_pass, 2)} percentile={data.percentiles?.off_epa_pass} />
+              <StatRow label="Def. EPA (Rush)" value={fmt(data.efficiency.def_epa_rush, 2)} percentile={data.percentiles?.def_epa_rush} />
+              <StatRow label="Def. EPA (Pass)" value={fmt(data.efficiency.def_epa_pass, 2)} percentile={data.percentiles?.def_epa_pass} />
+              <StatRow label="Plays/Game" value={fmt(data.efficiency.plays_per_game)} />
+              <StatRow label="Def. Havoc Rate" value={fmtPct(data.efficiency.def_havoc_rate)} percentile={data.percentiles?.def_havoc_rate} />
+            </div>
+
+            <div className="stats-section">
+              <h3>SP+</h3>
+              <StatRow label="Overall" value={fmt(data.sp_plus?.rating)} percentile={data.percentiles?.sp_plus_rating} />
+              <StatRow label="Offense" value={fmt(data.sp_plus?.offense)} percentile={data.percentiles?.sp_plus_offense} />
+              <StatRow label="Defense" value={fmt(data.sp_plus?.defense)} percentile={data.percentiles?.sp_plus_defense} />
+            </div>
+
+            <div className="stats-section">
+              <h3>Talent</h3>
+              <StatRow label="Composite" value={fmt(data.talent?.composite)} percentile={data.percentiles?.talent_composite} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RecordCard({ label, record }) {
+  if (!record) return null;
+  const { wins, losses, pushes, pct } = record;
+  return (
+    <div className="record-card">
+      <div className="record-label">{label}</div>
+      <div className="record-line">
+        {wins}-{losses}{pushes > 0 ? `-${pushes}` : ""}
+      </div>
+      {pct != null && <div className="record-pct">{fmtPct(pct)}</div>}
+    </div>
   );
 }
 
 export default function Home() {
-  const [tab, setTab] = useState("spreads");
+  const [tab, setTab] = useState("lines");
   const [week, setWeek] = useState(1);
   const [conference, setConference] = useState("All");
   const [linesData, setLinesData] = useState([]);
-  const [lastSynced, setLastSynced] = useState(null);
+  const [totalTeams, setTotalTeams] = useState(null);
   const [ratingsData, setRatingsData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [sortKey, setSortKey] = useState(null); // 'spreadDiff' | 'totalDiff'
-  const [sortDir, setSortDir] = useState("desc"); // 'desc' | 'asc'
-  const [hoveredGame, setHoveredGame] = useState(null);
+  const [statsTeam, setStatsTeam] = useState(null);
+  const [statsData, setStatsData] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [recordData, setRecordData] = useState(null);
 
-  function toggleSort(key) {
-    if (sortKey === key) {
-      setSortDir(sortDir === "desc" ? "asc" : "desc");
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
+  function openTeamStats(name) {
+    setStatsTeam(name);
+    setStatsData(null);
+    setStatsLoading(true);
+    fetch(`/api/team-stats?season=2026&team=${encodeURIComponent(name)}`)
+      .then(r => r.json())
+      .then(d => setStatsData(d))
+      .finally(() => setStatsLoading(false));
+  }
+
+  function closeTeamStats() {
+    setStatsTeam(null);
+    setStatsData(null);
   }
 
   useEffect(() => {
-    if (tab !== "spreads" && tab !== "totals") return;
+    if (tab !== "lines") return;
     setLoading(true);
     fetch(`/api/lines?season=2026&week=${week}`)
       .then(r => r.json())
       .then(d => {
         setLinesData(d.rows || []);
-        setLastSynced(d.lastSynced || null);
+        setTotalTeams(d.totalTeams || null);
       })
       .finally(() => setLoading(false));
   }, [tab, week]);
@@ -189,36 +342,42 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, [tab]);
 
+  useEffect(() => {
+    if (tab !== "record") return;
+    setLoading(true);
+    fetch(`/api/record?season=2026`)
+      .then(r => r.json())
+      .then(d => setRecordData(d))
+      .finally(() => setLoading(false));
+  }, [tab]);
+
   const conferences = useMemo(() => {
-    const source = tab === "ratings" ? ratingsData : linesData;
+    const source = tab === "lines" ? linesData : ratingsData;
     const set = new Set(source.map(r => r.conference).filter(Boolean));
     return ["All", ...Array.from(set).sort()];
   }, [tab, linesData, ratingsData]);
 
   const filteredLines = useMemo(() => {
-    const base = conference === "All" ? linesData : linesData.filter(r => r.conference === conference);
-    const withDiffs = base.map(r => ({
-      ...r,
-      spreadDiff: r.model_spread != null && r.market_spread != null ? r.model_spread - r.market_spread : null,
-      totalDiff: r.model_total != null && r.market_total != null ? r.model_total - r.market_total : null,
-    }));
-
-    if (!sortKey) return withDiffs;
-
-    const sorted = [...withDiffs].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      return sortDir === "desc" ? bv - av : av - bv;
-    });
-    return sorted;
-  }, [linesData, conference, sortKey, sortDir]);
+    if (conference === "All") return linesData;
+    return linesData.filter(r => r.conference === conference);
+  }, [linesData, conference]);
 
   const filteredRatings = useMemo(() => {
     if (conference === "All") return ratingsData;
     return ratingsData.filter(r => r.conference === conference);
   }, [ratingsData, conference]);
+
+  const gamesByDate = useMemo(() => {
+    const groups = {};
+    for (const row of filteredLines) {
+      const key = dateKey(row.start_date);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+    return Object.entries(groups).sort(([, rowsA], [, rowsB]) => {
+      return new Date(rowsA[0].start_date) - new Date(rowsB[0].start_date);
+    });
+  }, [filteredLines]);
 
   return (
     <div className="container">
@@ -231,16 +390,10 @@ export default function Home() {
 
       <div className="tabs">
         <button
-          className={`tab ${tab === "spreads" ? "active" : ""}`}
-          onClick={() => setTab("spreads")}
+          className={`tab ${tab === "lines" ? "active" : ""}`}
+          onClick={() => setTab("lines")}
         >
-          Spreads
-        </button>
-        <button
-          className={`tab ${tab === "totals" ? "active" : ""}`}
-          onClick={() => setTab("totals")}
-        >
-          Totals
+          Games
         </button>
         <button
           className={`tab ${tab === "ratings" ? "active" : ""}`}
@@ -248,11 +401,17 @@ export default function Home() {
         >
           Power Ratings
         </button>
+        <button
+          className={`tab ${tab === "record" ? "active" : ""}`}
+          onClick={() => setTab("record")}
+        >
+          Record
+        </button>
       </div>
 
-      <div className="filters" style={{ justifyContent: "space-between" }}>
-        <div style={{ display: "flex", gap: "12px" }}>
-          {(tab === "spreads" || tab === "totals") && (
+      {tab !== "record" && (
+        <div className="filters">
+          {tab === "lines" && (
             <select value={week} onChange={e => setWeek(Number(e.target.value))}>
               {Array.from({ length: 15 }, (_, i) => i + 1).map(w => (
                 <option key={w} value={w}>Week {w}</option>
@@ -265,128 +424,24 @@ export default function Home() {
             ))}
           </select>
         </div>
-        {(tab === "spreads" || tab === "totals") && lastSynced && (
-          <span style={{ fontSize: "12px", color: "#71717a", alignSelf: "center" }}>
-            {fmtSyncTime(lastSynced)}
-          </span>
-        )}
-      </div>
+      )}
 
       {loading && <div className="loading">Loading...</div>}
 
-      {!loading && tab === "spreads" && (
+      {!loading && tab === "lines" && (
         filteredLines.length === 0 ? (
           <div className="empty">No games found for this week/conference.</div>
         ) : (
-          <div className="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Team</th>
-                <th>Model</th>
-                <th>Market</th>
-                <th>Open</th>
-                <th className="sortable" onClick={() => toggleSort("spreadDiff")}>
-                  Diff {sortKey === "spreadDiff" ? (sortDir === "desc" ? "↓" : "↑") : ""}
-                </th>
-                <th>Key</th>
-                <th>Best Bet</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLines.map(row => {
-                const awayModel = row.model_spread != null ? -row.model_spread : null;
-                const homeModel = row.model_spread;
-                const awayMarket = row.market_spread != null ? -row.market_spread : null;
-                const homeMarket = row.market_spread;
-                const awayOpen = row.market_spread_open != null ? -row.market_spread_open : null;
-                const homeOpen = row.market_spread_open;
-                const awayDiff = row.spreadDiff != null ? -row.spreadDiff : null;
-                const homeDiff = row.spreadDiff;
-
-                let bestBet = null;
-                if (row.away_tag === "GREEN" || row.away_tag === "YELLOW") {
-                  bestBet = { team: row.away_team, logo: row.away_logo, line: awayMarket, tag: row.away_tag };
-                } else if (row.home_tag === "GREEN" || row.home_tag === "YELLOW") {
-                  bestBet = { team: row.home_team, logo: row.home_logo, line: homeMarket, tag: row.home_tag };
-                }
-
-                return (
-                  <Fragment key={row.game_id}>
-                    <tr
-                      className={`group-start ${hoveredGame === row.game_id ? "row-hover" : ""}`}
-                      onMouseEnter={() => setHoveredGame(row.game_id)}
-                      onMouseLeave={() => setHoveredGame(null)}
-                    >
-                      <td className="date-cell" rowSpan={2}>{fmtDate(row.start_date)}</td>
-                      <TeamCell name={row.away_team} logo={row.away_logo} />
-                      <td>{fmtSigned(awayModel)}</td>
-                      <td>
-                        <BookTooltip entries={booksTooltip(row.away_books)}>{fmtSigned(awayMarket)}</BookTooltip>
-                      </td>
-                      <td className="open-cell">{fmtSigned(awayOpen)}</td>
-                      <DiffCell diff={awayDiff} />
-                      <TagDot tag={row.away_tag} note={row.key_number_note} />
-                      <BestBetCell bet={bestBet} note={row.key_number_note} rowSpan={2} />
-                    </tr>
-                    <tr
-                      className={hoveredGame === row.game_id ? "row-hover" : ""}
-                      onMouseEnter={() => setHoveredGame(row.game_id)}
-                      onMouseLeave={() => setHoveredGame(null)}
-                    >
-                      <TeamCell name={row.home_team} logo={row.home_logo} />
-                      <td>{fmtSigned(homeModel)}</td>
-                      <td>
-                        <BookTooltip entries={booksTooltip(row.home_books)}>{fmtSigned(homeMarket)}</BookTooltip>
-                      </td>
-                      <td className="open-cell">{fmtSigned(homeOpen)}</td>
-                      <DiffCell diff={homeDiff} />
-                      <TagDot tag={row.home_tag} note={row.key_number_note} />
-                    </tr>
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-        )
-      )}
-
-      {!loading && tab === "totals" && (
-        filteredLines.length === 0 ? (
-          <div className="empty">No games found for this week/conference.</div>
-        ) : (
-          <div className="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Away</th>
-                <th>Home</th>
-                <th>Model Total</th>
-                <th>Market Total</th>
-                <th>Open Total</th>
-                <th className="sortable" onClick={() => toggleSort("totalDiff")}>
-                  Diff {sortKey === "totalDiff" ? (sortDir === "desc" ? "↓" : "↑") : ""}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLines.map(row => (
-                <tr key={row.game_id}>
-                  <td className="date-cell">{fmtDate(row.start_date)}</td>
-                  <TeamCell name={row.away_team} logo={row.away_logo} />
-                  <TeamCell name={row.home_team} logo={row.home_logo} />
-                  <td>{fmt(row.model_total)}</td>
-                  <td>{fmt(row.market_total)}</td>
-                  <td className="open-cell">{fmt(row.market_total_open)}</td>
-                  <DiffCell diff={row.totalDiff} />
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+          gamesByDate.map(([key, rows]) => (
+            <div key={key} className="date-group">
+              <h2 className="date-heading">{fmtDateHeading(rows[0].start_date)}</h2>
+              <div className="game-grid">
+                {rows.map(row => (
+                  <GameCard key={row.game_id} row={row} totalTeams={totalTeams} onSelectTeam={openTeamStats} />
+                ))}
+              </div>
+            </div>
+          ))
         )
       )}
 
@@ -395,68 +450,83 @@ export default function Home() {
           <div className="empty">No teams found for this conference.</div>
         ) : (
           <div className="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>School</th>
-                <th>Conference</th>
-                <th>Power Rating</th>
-                <th>Sources</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRatings.map(row => (
-                <tr key={row.school}>
-                  <td className="rank">{row.rank}</td>
-                  <TeamCell name={row.school} logo={row.logo_url} />
-                  <td><span className="conf-badge">{row.conference}</span></td>
-                  <td>{fmt(row.power_rating)}</td>
-                  <td className="open-cell">{row.sources_used ?? "—"}</td>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>School</th>
+                  <th>Conference</th>
+                  <th>Power Rating</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredRatings.map(row => (
+                  <tr key={row.school}>
+                    <td className="rank">
+                      <span className="rank-badge" style={rankColors(row.rank, ratingsData.length) || undefined}>{row.rank}</span>
+                    </td>
+                    <td>
+                      <div className="team-cell team-cell-clickable" onClick={() => openTeamStats(row.school)}>
+                        {row.logo_url && <img src={row.logo_url} alt="" className="team-logo" />}
+                        {row.school}
+                      </div>
+                    </td>
+                    <td><span className="conf-badge">{row.conference}</span></td>
+                    <td>{fmt(row.power_rating)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )
       )}
-      <style jsx global>{`
-        .book-tooltip-wrapper {
-          position: relative;
-          display: inline-block;
-          cursor: default;
-        }
-        .book-tooltip-content {
-          display: none;
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          margin-bottom: 6px;
-          background: #18181b;
-          border: 1px solid #3f3f46;
-          border-radius: 8px;
-          padding: 8px 12px;
-          font-size: 12px;
-          white-space: nowrap;
-          z-index: 50;
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-        }
-        .book-tooltip-wrapper:hover .book-tooltip-content {
-          display: flex;
-          flex-direction: column;
-          gap: 3px;
-        }
-        .book-tooltip-row {
-          display: flex;
-          justify-content: space-between;
-          gap: 16px;
-          color: #d4d4d8;
-        }
-        .book-tooltip-row span:first-child {
-          color: #a1a1aa;
-        }
-      `}</style>
+
+      {!loading && tab === "record" && (
+        !recordData || (recordData.season.ats.wins + recordData.season.ats.losses + recordData.season.ats.pushes === 0) ? (
+          <div className="empty">No graded games yet this season.</div>
+        ) : (
+          <div>
+            <div className="record-summary">
+              <RecordCard label="Season ATS" record={recordData.season.ats} />
+              <RecordCard label="Season O/U" record={recordData.season.total} />
+            </div>
+
+            <div className="table-card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>ATS</th>
+                    <th>ATS %</th>
+                    <th>O/U</th>
+                    <th>O/U %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recordData.byWeek.map(w => (
+                    <tr key={w.week}>
+                      <td>Week {w.week}</td>
+                      <td>{w.ats.wins}-{w.ats.losses}{w.ats.pushes > 0 ? `-${w.ats.pushes}` : ""}</td>
+                      <td>{w.ats.pct != null ? fmtPct(w.ats.pct) : "—"}</td>
+                      <td>{w.total.wins}-{w.total.losses}{w.total.pushes > 0 ? `-${w.total.pushes}` : ""}</td>
+                      <td>{w.total.pct != null ? fmtPct(w.total.pct) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+
+      {statsTeam && (
+        <TeamStatsPanel
+          team={statsTeam}
+          data={statsData}
+          loading={statsLoading}
+          onClose={closeTeamStats}
+        />
+      )}
     </div>
   );
 }
