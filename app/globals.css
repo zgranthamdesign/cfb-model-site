@@ -396,6 +396,17 @@ select:focus {
   padding: 1px 0;
 }
 
+.model-bet-line {
+  margin-top: 6px;
+  background: var(--accent-dim);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.model-bet-line .stat-label-meta {
+  color: var(--accent);
+}
+
 .ats-badge {
   display: inline-block;
   margin-left: 5px;

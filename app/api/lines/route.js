@@ -125,6 +125,21 @@ export async function GET(request) {
 
     const { bet_team, bet_spread, bet_spread_open, ats_result, total_pick, total_result } = gradeGame({ home, away, line, game: g });
 
+    // Only surface the "Model Bet" line when the edge is real, not just
+    // rounding noise. Below ~1 point of disagreement isn't worth a bet.
+    const EDGE_THRESHOLD = 1;
+    let show_spread_bet = false;
+    if (line.market_spread != null && line.model_spread != null && home && away) {
+      const home_is_favorite = line.market_spread < 0;
+      const market_favorite_spread = Math.abs(line.market_spread);
+      const model_favorite_spread = home_is_favorite ? -line.model_spread : line.model_spread;
+      show_spread_bet = Math.abs(model_favorite_spread - market_favorite_spread) >= EDGE_THRESHOLD;
+    }
+    let show_total_bet = false;
+    if (line.model_total != null && line.market_total != null) {
+      show_total_bet = Math.abs(line.model_total - line.market_total) >= EDGE_THRESHOLD;
+    }
+
     // Only surface a key number badge for the highest tier (KEY++),
     // per how the site should display it.
     const key_number_margin = line.key_number_tier === "KEY++" ? line.key_number_margin : null;
@@ -172,6 +187,8 @@ export async function GET(request) {
       bet_team,
       bet_spread,
       bet_spread_open,
+      show_spread_bet,
+      show_total_bet,
       model_total: line.model_total ?? null,
       market_total: line.market_total ?? null,
       market_total_open: line.market_total_open ?? null,

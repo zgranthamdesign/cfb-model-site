@@ -145,21 +145,36 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
 
       <div className="game-card-divider" />
 
-      {row.bet_team && (
+      {row.projected_winner && (
         <div className="game-card-projection">
-          <span className="stat-label-meta">Model:</span> <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
-          {row.ats_result && (
-            <span className={
-              row.ats_result === "COVER" ? "ats-badge ats-cover" :
-              row.ats_result === "NO_COVER" ? "ats-badge ats-miss" :
-              "ats-badge ats-push"
-            }>
-              {row.ats_result === "COVER" ? "✓" : row.ats_result === "NO_COVER" ? "✗" : "Push"}
-            </span>
+          <span className="stat-label-meta">Model:</span> <strong>{row.projected_winner}</strong> -{fmt(row.projected_margin)}
+          {row.model_total != null && (
+            <> / <strong>Total:</strong> {fmt(row.model_total)}</>
           )}
-          {row.total_pick && (
+        </div>
+      )}
+
+      {(row.show_spread_bet || row.show_total_bet) && (
+        <div className="game-card-projection model-bet-line">
+          <span className="stat-label-meta">Model Bet:</span>{" "}
+          {row.show_spread_bet && row.bet_team && (
             <>
-              {" / "}<strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
+              <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
+              {row.ats_result && (
+                <span className={
+                  row.ats_result === "COVER" ? "ats-badge ats-cover" :
+                  row.ats_result === "NO_COVER" ? "ats-badge ats-miss" :
+                  "ats-badge ats-push"
+                }>
+                  {row.ats_result === "COVER" ? "✓" : row.ats_result === "NO_COVER" ? "✗" : "Push"}
+                </span>
+              )}
+            </>
+          )}
+          {row.show_spread_bet && row.show_total_bet && " / "}
+          {row.show_total_bet && row.total_pick && (
+            <>
+              <strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
               {row.total_result && (
                 <span className={
                   row.total_result === "COVER" ? "ats-badge ats-cover" :
@@ -178,7 +193,7 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
 
       <div className="game-card-stat-row">
         <span>
-          <span className="stat-label-meta">Spread:</span> <span className="game-card-stat-value">{row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}</span>
+          <span className="stat-label-meta">Market Spread:</span> <span className="game-card-stat-value">{row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}</span>
           {row.market_spread_open_favorite != null && (
             <span className="open-cell"> (Open {fmtHalf(row.market_spread_open_favorite)})</span>
           )}
@@ -191,7 +206,7 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
 
       <div className="game-card-stat-row">
         <span>
-          <span className="stat-label-meta">Total:</span> <span className="game-card-stat-value">{fmtHalf(row.market_total)}</span>
+          <span className="stat-label-meta">Market Total:</span> <span className="game-card-stat-value">{fmtHalf(row.market_total)}</span>
           {row.market_total_open != null && (
             <span className="open-cell"> (Open {fmtHalf(row.market_total_open)})</span>
           )}
