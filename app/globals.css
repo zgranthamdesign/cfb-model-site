@@ -350,6 +350,52 @@ select:focus {
   text-align: left;
 }
 
+.market-hover {
+  position: relative;
+  display: inline-block;
+  margin-left: 4px;
+  cursor: help;
+}
+
+.market-hover-icon {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.market-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg-elevated);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 20;
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.25);
+}
+
+.market-hover:hover .market-tooltip {
+  display: block;
+}
+
+.market-tooltip-header {
+  font-weight: 700;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.market-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 1px 0;
+}
+
 .ats-badge {
   display: inline-block;
   margin-left: 5px;

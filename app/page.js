@@ -110,6 +110,26 @@ function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, o
   );
 }
 
+function BookBreakdown({ team, books }) {
+  if (!books) return null;
+  const entries = Object.entries(books).sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length === 0) return null;
+  return (
+    <span className="market-hover">
+      <span className="market-hover-icon">ⓘ</span>
+      <div className="market-tooltip">
+        <div className="market-tooltip-header">{team}</div>
+        {entries.map(([book, spread]) => (
+          <div className="market-tooltip-row" key={book}>
+            <span>{book}</span>
+            <span>{fmtHalfSigned(spread)}</span>
+          </div>
+        ))}
+      </div>
+    </span>
+  );
+}
+
 function GameCard({ row, totalTeams, onSelectTeam }) {
   return (
     <div className="game-card">
@@ -162,6 +182,10 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
           {row.market_spread_open_favorite != null && (
             <span className="open-cell"> (Open {fmtHalf(row.market_spread_open_favorite)})</span>
           )}
+          <BookBreakdown
+            team={row.market_favorite_team}
+            books={row.market_favorite_team === row.home_team ? row.home_books : row.away_books}
+          />
         </span>
       </div>
 
