@@ -69,6 +69,7 @@ function computeSourceRanks(allRatings, teamId) {
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const season = parseInt(searchParams.get("season") || "2026", 10);
+  const week = parseInt(searchParams.get("week") || "1", 10);
   const team = searchParams.get("team");
 
   if (!team) {
@@ -96,7 +97,8 @@ export async function GET(request) {
   const { data: allRatings } = await supabase
     .from("composite_ratings")
     .select("team_id, our_model_z, sp_plus_z, fpi_z, elo_z, srs_z")
-    .eq("season", season);
+    .eq("season", season)
+    .eq("week", week);
   const source_rankings = computeSourceRanks(allRatings || [], teamRow.team_id);
 
   const { data: stats, error: statsError } = await supabase

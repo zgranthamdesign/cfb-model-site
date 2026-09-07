@@ -399,7 +399,7 @@ export default function Home() {
     setStatsTeam(name);
     setStatsData(null);
     setStatsLoading(true);
-    fetch(`/api/team-stats?season=2026&team=${encodeURIComponent(name)}`)
+    fetch(`/api/team-stats?season=2026&week=${week}&team=${encodeURIComponent(name)}`)
       .then(r => r.json())
       .then(d => setStatsData(d))
       .finally(() => setStatsLoading(false));
