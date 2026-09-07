@@ -9,11 +9,13 @@ const supabase = createClient(
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const season = parseInt(searchParams.get("season") || "2026", 10);
+  const week = parseInt(searchParams.get("week") || "1", 10);
 
   const { data: ratings, error: ratingsError } = await supabase
     .from("composite_ratings")
     .select("team_id, composite_points, sources_used")
     .eq("season", season)
+    .eq("week", week)
     .order("composite_points", { ascending: false });
 
   if (ratingsError) {

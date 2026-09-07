@@ -426,11 +426,11 @@ export default function Home() {
   useEffect(() => {
     if (tab !== "ratings") return;
     setLoading(true);
-    fetch(`/api/ratings?season=2026`)
+    fetch(`/api/ratings?season=2026&week=${week}`)
       .then(r => r.json())
       .then(d => setRatingsData(d.rows || []))
       .finally(() => setLoading(false));
-  }, [tab]);
+  }, [tab, week]);
 
   useEffect(() => {
     if (tab !== "record") return;
@@ -530,13 +530,11 @@ export default function Home() {
 
       {tab !== "record" && (
         <div className="filters">
-          {tab === "lines" && (
-            <select value={week} onChange={e => setWeek(Number(e.target.value))}>
-              {Array.from({ length: 15 }, (_, i) => i + 1).map(w => (
-                <option key={w} value={w}>Week {w}</option>
-              ))}
-            </select>
-          )}
+          <select value={week} onChange={e => setWeek(Number(e.target.value))}>
+            {Array.from({ length: 15 }, (_, i) => i + 1).map(w => (
+              <option key={w} value={w}>Week {w}</option>
+            ))}
+          </select>
           <select value={conference} onChange={e => setConference(e.target.value)}>
             {conferences.map(c => (
               <option key={c} value={c}>{c}</option>
