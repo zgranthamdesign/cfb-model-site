@@ -47,6 +47,7 @@ export async function GET(request) {
     .from("composite_ratings")
     .select("team_id, composite_points")
     .eq("season", season)
+    .eq("week", week)
     .order("composite_points", { ascending: false });
   const ratingByTeam = Object.fromEntries((allRatings || []).map(r => [r.team_id, r.composite_points]));
   const rankByTeam = Object.fromEntries((allRatings || []).map((r, i) => [r.team_id, i + 1]));
