@@ -250,6 +250,8 @@ function StatRow({ label, value, rank }) {
 }
 
 function TeamStatsPanel({ team, data, loading, onClose }) {
+  const [modalTab, setModalTab] = useState("overview");
+
   return (
     <div className="stats-overlay" onClick={onClose}>
       <div className="stats-panel" onClick={e => e.stopPropagation()}>
@@ -259,95 +261,147 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
           <button className="stats-panel-close" onClick={onClose}>×</button>
         </div>
 
-        {loading && <div className="loading">Loading stats...</div>}
-
-        {!loading && data?.note && (
-          <div className="team-note">
-            <ul>
-              {data.note.split("\n").map(line => line.trim()).filter(Boolean).map((line, i) => (
-                <li key={i}>{line.replace(/^[-•]\s*/, "")}</li>
-              ))}
-            </ul>
+        {!loading && (
+          <div className="modal-tabs">
+            <button
+              className={`modal-tab ${modalTab === "overview" ? "active" : ""}`}
+              onClick={() => setModalTab("overview")}
+            >
+              Overview
+            </button>
+            <button
+              className={`modal-tab ${modalTab === "schedule" ? "active" : ""}`}
+              onClick={() => setModalTab("schedule")}
+            >
+              Schedule
+            </button>
           </div>
         )}
 
-        {!loading && data?.source_rankings && Object.values(data.source_rankings).some(Boolean) && (
+        {loading && <div className="loading">Loading stats...</div>}
+
+        {!loading && modalTab === "overview" && (
+          <>
+            {data?.note && (
+              <div className="team-note">
+                <ul>
+                  {data.note.split("\n").map(line => line.trim()).filter(Boolean).map((line, i) => (
+                    <li key={i}>{line.replace(/^[-•]\s*/, "")}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {data?.source_rankings && Object.values(data.source_rankings).some(Boolean) && (
+              <div className="stats-section">
+                <h3>Source Rankings</h3>
+                {[
+                  ["sp_plus", "SP+"],
+                  ["fpi", "FPI"],
+                  ["elo", "Elo"],
+                  ["srs", "SRS"],
+                ].map(([key, label]) => {
+                  const r = data.source_rankings[key];
+                  return (
+                    <div className="stat-row" key={key}>
+                      <span className="stat-label">{label}</span>
+                      <span className="stat-row-right">
+                        {r ? (
+                          <>
+                            <span className="rank-badge" style={rankColors(r.rank, r.total) || undefined}>#{r.rank}</span>
+                            <span className="source-rank-total">of {r.total}</span>
+                          </>
+                        ) : (
+                          <span className="stat-value">—</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {data && !data.efficiency && (
+              <div className="empty">No stats available yet for {team}.</div>
+            )}
+
+            {data && data.efficiency && (
+              <div className="stats-panel-body">
+                <div className="stats-meta">
+                  {data.conference && <span className="conf-badge">{data.conference}</span>}
+                  {data.week != null && <span>Through Week {data.week} ({data.games_played} game{data.games_played === 1 ? "" : "s"})</span>}
+                </div>
+
+                <div className="stats-col-header">
+                  <span></span>
+                  <span className="stats-col-header-right">
+                    <span className="stats-col-label-value">Value</span>
+                    <span className="stats-col-label-pct">Pctl</span>
+                  </span>
+                </div>
+
+                <div className="stats-section">
+                  <h3>Efficiency</h3>
+                  <StatRow label="Off. EPA/play" value={fmt(data.efficiency.off_epa_per_play, 2)} rank={data.ranks?.off_epa_per_play} />
+                  <StatRow label="Def. EPA/play" value={fmt(data.efficiency.def_epa_per_play, 2)} rank={data.ranks?.def_epa_per_play} />
+                  <StatRow label="Off. Success Rate" value={fmtPct(data.efficiency.off_success_rate)} rank={data.ranks?.off_success_rate} />
+                  <StatRow label="Def. Success Rate" value={fmtPct(data.efficiency.def_success_rate)} rank={data.ranks?.def_success_rate} />
+                  <StatRow label="Off. Explosiveness" value={fmt(data.efficiency.off_explosiveness, 2)} rank={data.ranks?.off_explosiveness} />
+                  <StatRow label="Def. Explosiveness" value={fmt(data.efficiency.def_explosiveness, 2)} rank={data.ranks?.def_explosiveness} />
+                  <StatRow label="Off. PPA" value={fmt(data.efficiency.off_ppa)} rank={data.ranks?.off_ppa} />
+                  <StatRow label="Def. PPA" value={fmt(data.efficiency.def_ppa)} rank={data.ranks?.def_ppa} />
+                  <StatRow label="Off. EPA (Rush)" value={fmt(data.efficiency.off_epa_rush, 2)} rank={data.ranks?.off_epa_rush} />
+                  <StatRow label="Off. EPA (Pass)" value={fmt(data.efficiency.off_epa_pass, 2)} rank={data.ranks?.off_epa_pass} />
+                  <StatRow label="Def. EPA (Rush)" value={fmt(data.efficiency.def_epa_rush, 2)} rank={data.ranks?.def_epa_rush} />
+                  <StatRow label="Def. EPA (Pass)" value={fmt(data.efficiency.def_epa_pass, 2)} rank={data.ranks?.def_epa_pass} />
+                  <StatRow label="Plays/Game" value={fmt(data.efficiency.plays_per_game)} />
+                  <StatRow label="Def. Havoc Rate" value={fmtPct(data.efficiency.def_havoc_rate)} rank={data.ranks?.def_havoc_rate} />
+                </div>
+
+                <div className="stats-section">
+                  <h3>SP+</h3>
+                  <StatRow label="Overall" value={fmt(data.sp_plus?.rating)} rank={data.ranks?.sp_plus_rating} />
+                  <StatRow label="Offense" value={fmt(data.sp_plus?.offense)} rank={data.ranks?.sp_plus_offense} />
+                  <StatRow label="Defense" value={fmt(data.sp_plus?.defense)} rank={data.ranks?.sp_plus_defense} />
+                </div>
+
+                <div className="stats-section">
+                  <h3>Talent</h3>
+                  <StatRow label="Composite" value={fmt(data.talent?.composite)} rank={data.ranks?.talent_composite} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {!loading && modalTab === "schedule" && (
           <div className="stats-section">
-            <h3>Source Rankings</h3>
-            {[
-              ["sp_plus", "SP+"],
-              ["fpi", "FPI"],
-              ["elo", "Elo"],
-              ["srs", "SRS"],
-            ].map(([key, label]) => {
-              const r = data.source_rankings[key];
-              return (
-                <div className="stat-row" key={key}>
-                  <span className="stat-label">{label}</span>
-                  <span className="stat-row-right">
-                    {r ? (
+            {(!data?.schedule || data.schedule.length === 0) ? (
+              <div className="empty">No schedule available yet for {team}.</div>
+            ) : (
+              data.schedule.map(g => (
+                <div className="schedule-row" key={g.week}>
+                  <span className="schedule-week">Wk {g.week}</span>
+                  <span className="schedule-opponent">
+                    {g.home_away === "away" ? "@ " : "vs "}
+                    {g.opponent_logo && <img src={g.opponent_logo} alt="" className="team-logo" />}
+                    {g.opponent}
+                  </span>
+                  <span className="schedule-result">
+                    {g.completed ? (
                       <>
-                        <span className="rank-badge" style={rankColors(r.rank, r.total) || undefined}>#{r.rank}</span>
-                        <span className="source-rank-total">of {r.total}</span>
+                        <span className={`schedule-result-badge ${g.result === "W" ? "win" : g.result === "L" ? "loss" : ""}`}>
+                          {g.result}
+                        </span>
+                        <span className="schedule-score">{g.team_score}-{g.opp_score}</span>
                       </>
                     ) : (
                       <span className="stat-value">—</span>
                     )}
                   </span>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!loading && data && !data.efficiency && (
-          <div className="empty">No stats available yet for {team}.</div>
-        )}
-
-        {!loading && data && data.efficiency && (
-          <div className="stats-panel-body">
-            <div className="stats-meta">
-              {data.conference && <span className="conf-badge">{data.conference}</span>}
-              {data.week != null && <span>Through Week {data.week} ({data.games_played} game{data.games_played === 1 ? "" : "s"})</span>}
-            </div>
-
-            <div className="stats-col-header">
-              <span></span>
-              <span className="stats-col-header-right">
-                <span className="stats-col-label-value">Value</span>
-                <span className="stats-col-label-pct">Pctl</span>
-              </span>
-            </div>
-
-            <div className="stats-section">
-              <h3>Efficiency</h3>
-              <StatRow label="Off. EPA/play" value={fmt(data.efficiency.off_epa_per_play, 2)} rank={data.ranks?.off_epa_per_play} />
-              <StatRow label="Def. EPA/play" value={fmt(data.efficiency.def_epa_per_play, 2)} rank={data.ranks?.def_epa_per_play} />
-              <StatRow label="Off. Success Rate" value={fmtPct(data.efficiency.off_success_rate)} rank={data.ranks?.off_success_rate} />
-              <StatRow label="Def. Success Rate" value={fmtPct(data.efficiency.def_success_rate)} rank={data.ranks?.def_success_rate} />
-              <StatRow label="Off. Explosiveness" value={fmt(data.efficiency.off_explosiveness, 2)} rank={data.ranks?.off_explosiveness} />
-              <StatRow label="Def. Explosiveness" value={fmt(data.efficiency.def_explosiveness, 2)} rank={data.ranks?.def_explosiveness} />
-              <StatRow label="Off. PPA" value={fmt(data.efficiency.off_ppa)} rank={data.ranks?.off_ppa} />
-              <StatRow label="Def. PPA" value={fmt(data.efficiency.def_ppa)} rank={data.ranks?.def_ppa} />
-              <StatRow label="Off. EPA (Rush)" value={fmt(data.efficiency.off_epa_rush, 2)} rank={data.ranks?.off_epa_rush} />
-              <StatRow label="Off. EPA (Pass)" value={fmt(data.efficiency.off_epa_pass, 2)} rank={data.ranks?.off_epa_pass} />
-              <StatRow label="Def. EPA (Rush)" value={fmt(data.efficiency.def_epa_rush, 2)} rank={data.ranks?.def_epa_rush} />
-              <StatRow label="Def. EPA (Pass)" value={fmt(data.efficiency.def_epa_pass, 2)} rank={data.ranks?.def_epa_pass} />
-              <StatRow label="Plays/Game" value={fmt(data.efficiency.plays_per_game)} />
-              <StatRow label="Def. Havoc Rate" value={fmtPct(data.efficiency.def_havoc_rate)} rank={data.ranks?.def_havoc_rate} />
-            </div>
-
-            <div className="stats-section">
-              <h3>SP+</h3>
-              <StatRow label="Overall" value={fmt(data.sp_plus?.rating)} rank={data.ranks?.sp_plus_rating} />
-              <StatRow label="Offense" value={fmt(data.sp_plus?.offense)} rank={data.ranks?.sp_plus_offense} />
-              <StatRow label="Defense" value={fmt(data.sp_plus?.defense)} rank={data.ranks?.sp_plus_defense} />
-            </div>
-
-            <div className="stats-section">
-              <h3>Talent</h3>
-              <StatRow label="Composite" value={fmt(data.talent?.composite)} rank={data.ranks?.talent_composite} />
-            </div>
+              ))
+            )}
           </div>
         )}
       </div>

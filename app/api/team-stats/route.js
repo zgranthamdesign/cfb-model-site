@@ -56,6 +56,48 @@ function computeSourceRanks(allRatings, teamId) {
   return result;
 }
 
+async function getSchedule(season, teamId) {
+  const { data: games } = await supabase
+    .from("games")
+    .select("game_id, week, home_team_id, away_team_id, home_points, away_points, completed")
+    .eq("season", season)
+    .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+    .order("week", { ascending: true });
+
+  if (!games || games.length === 0) return [];
+
+  const opponentIds = [...new Set(
+    games.map(g => (g.home_team_id === teamId ? g.away_team_id : g.home_team_id))
+  )];
+  const { data: opponents } = await supabase
+    .from("teams")
+    .select("team_id, school, logo_url")
+    .in("team_id", opponentIds);
+  const opponentById = Object.fromEntries((opponents || []).map(t => [t.team_id, t]));
+
+  return games.map(g => {
+    const isHome = g.home_team_id === teamId;
+    const opponentId = isHome ? g.away_team_id : g.home_team_id;
+    const opponent = opponentById[opponentId];
+    const teamScore = isHome ? g.home_points : g.away_points;
+    const oppScore = isHome ? g.away_points : g.home_points;
+    let result = null;
+    if (g.completed && teamScore != null && oppScore != null) {
+      result = teamScore > oppScore ? "W" : teamScore < oppScore ? "L" : "T";
+    }
+    return {
+      week: g.week,
+      opponent: opponent?.school || "?",
+      opponent_logo: opponent?.logo_url || null,
+      home_away: isHome ? "home" : "away",
+      team_score: teamScore,
+      opp_score: oppScore,
+      completed: g.completed,
+      result,
+    };
+  });
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const season = parseInt(searchParams.get("season") || "2026", 10);
@@ -83,6 +125,8 @@ export async function GET(request) {
     .eq("season", season)
     .maybeSingle();
   const note = noteRow?.note || null;
+
+  const schedule = await getSchedule(season, teamRow.team_id);
 
   const { data: allRatings } = await supabase
     .from("composite_ratings")
@@ -114,7 +158,7 @@ export async function GET(request) {
   }
 
   if (!stats) {
-    return NextResponse.json({ team: teamRow.school, stats: null, note, source_rankings });
+    return NextResponse.json({ team: teamRow.school, stats: null, note, source_rankings, schedule });
   }
 
   const { data: allStats } = await supabase
@@ -167,5 +211,6 @@ export async function GET(request) {
     ranks,
     note,
     source_rankings,
+    schedule,
   });
 }

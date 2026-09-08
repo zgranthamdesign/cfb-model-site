@@ -831,3 +831,104 @@ th {
   font-family: 'Inter', sans-serif;
   font-size: 12.5px;
 }
+
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  background: var(--bg-hover);
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.modal-tab {
+  flex: 1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.15s ease;
+}
+
+.modal-tab:hover {
+  color: var(--text);
+}
+
+.modal-tab.active {
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+.schedule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+
+.schedule-row:first-child {
+  border-top: none;
+}
+
+.schedule-week {
+  color: var(--text-faint);
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.schedule-opponent {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.schedule-result-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.schedule-result-badge.win {
+  background: #dcfce7;
+  color: var(--positive);
+}
+
+.schedule-result-badge.loss {
+  background: #fee2e2;
+  color: var(--negative);
+}
+
+.schedule-score {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  min-width: 40px;
+  text-align: right;
+}
