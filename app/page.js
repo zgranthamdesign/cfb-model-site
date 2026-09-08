@@ -285,7 +285,6 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
           <div className="stats-section">
             <h3>Source Rankings</h3>
             {[
-              ["our_model", "Our Model"],
               ["sp_plus", "SP+"],
               ["fpi", "FPI"],
               ["elo", "Elo"],
