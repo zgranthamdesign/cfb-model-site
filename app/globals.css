@@ -810,3 +810,23 @@ th {
   width: 50px;
   text-align: center;
 }
+
+.movement-up {
+  color: var(--positive);
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+}
+
+.movement-down {
+  color: var(--negative);
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+}
+
+.movement-none {
+  color: var(--text-faint);
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+}

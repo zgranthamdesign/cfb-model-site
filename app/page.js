@@ -573,6 +573,7 @@ export default function Home() {
                   <th>School</th>
                   <th>Conference</th>
                   <th>Power Rating</th>
+                  <th>Movement</th>
                 </tr>
               </thead>
               <tbody>
@@ -589,6 +590,17 @@ export default function Home() {
                     </td>
                     <td><span className="conf-badge">{row.conference}</span></td>
                     <td>{fmt(row.power_rating)}</td>
+                    <td>
+                      {row.movement == null ? (
+                        <span className="movement-none">—</span>
+                      ) : row.movement > 0 ? (
+                        <span className="movement-up">▲ {row.movement}</span>
+                      ) : row.movement < 0 ? (
+                        <span className="movement-down">▼ {Math.abs(row.movement)}</span>
+                      ) : (
+                        <span className="movement-none">–</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
