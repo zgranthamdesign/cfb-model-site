@@ -6,9 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Whether a HIGHER raw value is better for each stat. Defensive rate
-// stats (points/success/explosiveness allowed) are better when LOWER,
-// so those get inverted when turned into a percentile.
 const HIGHER_IS_BETTER = {
   off_epa_per_play: true,
   def_epa_per_play: false,
@@ -29,9 +26,6 @@ const HIGHER_IS_BETTER = {
   talent_composite: true,
 };
 
-// Percentile of `value` among `allValues`, direction-adjusted so a
-// higher percentile always means "better", regardless of whether the
-// underlying stat is a higher-is-better or lower-is-better one.
 function percentileOf(value, allValues, higherIsBetter) {
   if (value == null || !allValues || allValues.length < 2) return null;
   const values = allValues.filter(v => v != null);
@@ -43,14 +37,8 @@ function percentileOf(value, allValues, higherIsBetter) {
   return pct;
 }
 
-// Rank a team against the field for each individual rating source
-// (higher z-score = better, consistent with how the composite blend
-// treats them). Sources the team has no data for (e.g. SRS on 2025
-// fallback for some teams) come back as null.
 const SOURCE_FIELDS = {
   our_model: "our_model_z",
-  sp_plus: "sp_plus_z",
-  fpi: "fpi_z",
   elo: "elo_z",
   srs: "srs_z",
 };
@@ -96,10 +84,19 @@ export async function GET(request) {
 
   const { data: allRatings } = await supabase
     .from("composite_ratings")
-    .select("team_id, our_model_z, sp_plus_z, fpi_z, elo_z, srs_z")
+    .select("team_id, our_model_z, elo_z, srs_z")
     .eq("season", season)
     .eq("week", week);
   const source_rankings = computeSourceRanks(allRatings || [], teamRow.team_id);
+
+  const { data: fpiRows, count: fpiTotal } = await supabase
+    .from("external_ratings")
+    .select("team_id, rank", { count: "exact" })
+    .eq("season", season)
+    .eq("source", "fpi")
+    .not("rank", "is", null);
+  const fpiRow = (fpiRows || []).find(r => r.team_id === teamRow.team_id);
+  source_rankings.fpi = fpiRow ? { rank: fpiRow.rank, total: fpiTotal || (fpiRows || []).length } : null;
 
   const { data: stats, error: statsError } = await supabase
     .from("team_weekly_stats")
@@ -118,13 +115,16 @@ export async function GET(request) {
     return NextResponse.json({ team: teamRow.school, stats: null, note, source_rankings });
   }
 
-  // Pull every team's stats for that same week so we can rank this
-  // team's numbers against the field.
   const { data: allStats } = await supabase
     .from("team_weekly_stats")
     .select("*")
     .eq("season", season)
     .eq("week", stats.week);
+
+  const spPlusTotal = (allStats || []).filter(r => r.sp_plus_rank != null).length;
+  source_rankings.sp_plus = stats.sp_plus_rank != null
+    ? { rank: stats.sp_plus_rank, total: spPlusTotal }
+    : null;
 
   const percentiles = {};
   for (const field of Object.keys(HIGHER_IS_BETTER)) {
