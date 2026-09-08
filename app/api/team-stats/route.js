@@ -26,15 +26,17 @@ const HIGHER_IS_BETTER = {
   talent_composite: true,
 };
 
-function percentileOf(value, allValues, higherIsBetter) {
-  if (value == null || !allValues || allValues.length < 2) return null;
+// Rank of `value` among `allValues`, direction-adjusted so rank 1 is
+// always "best" regardless of whether the underlying stat is a
+// higher-is-better or lower-is-better one.
+function rankOf(value, allValues, higherIsBetter) {
+  if (value == null || !allValues) return null;
   const values = allValues.filter(v => v != null);
   if (values.length < 2) return null;
-  const below = values.filter(v => v < value).length;
-  const equal = values.filter(v => v === value).length;
-  let pct = (below + equal / 2) / values.length;
-  if (!higherIsBetter) pct = 1 - pct;
-  return pct;
+  const better = higherIsBetter
+    ? values.filter(v => v > value).length
+    : values.filter(v => v < value).length;
+  return { rank: better + 1, total: values.length };
 }
 
 const SOURCE_FIELDS = {
@@ -126,10 +128,10 @@ export async function GET(request) {
     ? { rank: stats.sp_plus_rank, total: spPlusTotal }
     : null;
 
-  const percentiles = {};
+  const ranks = {};
   for (const field of Object.keys(HIGHER_IS_BETTER)) {
     const allValues = (allStats || []).map(r => r[field]);
-    percentiles[field] = percentileOf(stats[field], allValues, HIGHER_IS_BETTER[field]);
+    ranks[field] = rankOf(stats[field], allValues, HIGHER_IS_BETTER[field]);
   }
 
   return NextResponse.json({
@@ -162,7 +164,7 @@ export async function GET(request) {
     talent: {
       composite: stats.talent_composite,
     },
-    percentiles,
+    ranks,
     note,
     source_rankings,
   });

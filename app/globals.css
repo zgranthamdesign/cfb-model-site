@@ -792,9 +792,10 @@ th {
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 5px;
-  width: 36px;
   box-sizing: border-box;
   text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .stat-label {

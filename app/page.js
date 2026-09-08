@@ -220,10 +220,11 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
   );
 }
 
-// Green (great) -> yellow (average) -> red (poor), for stat percentiles.
-// pct is 0-1, already direction-adjusted so 1 always means "better".
-function percentileColor(pct) {
-  if (pct == null) return null;
+// Green (great) -> yellow (average) -> red (poor), based on rank
+// position within the field. pct is 0-1, 1 always means "better".
+function rankColor(rank, total) {
+  if (rank == null || total == null || total < 2) return null;
+  const pct = 1 - (rank - 1) / (total - 1);
   const hue = 120 * pct;
   return {
     background: `hsl(${hue}, 70%, 90%)`,
@@ -231,27 +232,16 @@ function percentileColor(pct) {
   };
 }
 
-function ordinal(n) {
-  const v = n % 100;
-  if (v >= 11 && v <= 13) return `${n}th`;
-  switch (n % 10) {
-    case 1: return `${n}st`;
-    case 2: return `${n}nd`;
-    case 3: return `${n}rd`;
-    default: return `${n}th`;
-  }
-}
-
-function StatRow({ label, value, percentile }) {
-  const style = percentileColor(percentile);
+function StatRow({ label, value, rank }) {
+  const style = rank ? rankColor(rank.rank, rank.total) : null;
   return (
     <div className="stat-row">
       <span className="stat-label">{label}</span>
       <span className="stat-row-right">
         <span className="stat-value">{value}</span>
-        {percentile != null && (
+        {rank != null && (
           <span className="percentile-badge" style={style}>
-            {ordinal(Math.round(percentile * 100))}
+            #{rank.rank} of {rank.total}
           </span>
         )}
       </span>
@@ -331,32 +321,32 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
 
             <div className="stats-section">
               <h3>Efficiency</h3>
-              <StatRow label="Off. EPA/play" value={fmt(data.efficiency.off_epa_per_play, 2)} percentile={data.percentiles?.off_epa_per_play} />
-              <StatRow label="Def. EPA/play" value={fmt(data.efficiency.def_epa_per_play, 2)} percentile={data.percentiles?.def_epa_per_play} />
-              <StatRow label="Off. Success Rate" value={fmtPct(data.efficiency.off_success_rate)} percentile={data.percentiles?.off_success_rate} />
-              <StatRow label="Def. Success Rate" value={fmtPct(data.efficiency.def_success_rate)} percentile={data.percentiles?.def_success_rate} />
-              <StatRow label="Off. Explosiveness" value={fmt(data.efficiency.off_explosiveness, 2)} percentile={data.percentiles?.off_explosiveness} />
-              <StatRow label="Def. Explosiveness" value={fmt(data.efficiency.def_explosiveness, 2)} percentile={data.percentiles?.def_explosiveness} />
-              <StatRow label="Off. PPA" value={fmt(data.efficiency.off_ppa)} percentile={data.percentiles?.off_ppa} />
-              <StatRow label="Def. PPA" value={fmt(data.efficiency.def_ppa)} percentile={data.percentiles?.def_ppa} />
-              <StatRow label="Off. EPA (Rush)" value={fmt(data.efficiency.off_epa_rush, 2)} percentile={data.percentiles?.off_epa_rush} />
-              <StatRow label="Off. EPA (Pass)" value={fmt(data.efficiency.off_epa_pass, 2)} percentile={data.percentiles?.off_epa_pass} />
-              <StatRow label="Def. EPA (Rush)" value={fmt(data.efficiency.def_epa_rush, 2)} percentile={data.percentiles?.def_epa_rush} />
-              <StatRow label="Def. EPA (Pass)" value={fmt(data.efficiency.def_epa_pass, 2)} percentile={data.percentiles?.def_epa_pass} />
+              <StatRow label="Off. EPA/play" value={fmt(data.efficiency.off_epa_per_play, 2)} rank={data.ranks?.off_epa_per_play} />
+              <StatRow label="Def. EPA/play" value={fmt(data.efficiency.def_epa_per_play, 2)} rank={data.ranks?.def_epa_per_play} />
+              <StatRow label="Off. Success Rate" value={fmtPct(data.efficiency.off_success_rate)} rank={data.ranks?.off_success_rate} />
+              <StatRow label="Def. Success Rate" value={fmtPct(data.efficiency.def_success_rate)} rank={data.ranks?.def_success_rate} />
+              <StatRow label="Off. Explosiveness" value={fmt(data.efficiency.off_explosiveness, 2)} rank={data.ranks?.off_explosiveness} />
+              <StatRow label="Def. Explosiveness" value={fmt(data.efficiency.def_explosiveness, 2)} rank={data.ranks?.def_explosiveness} />
+              <StatRow label="Off. PPA" value={fmt(data.efficiency.off_ppa)} rank={data.ranks?.off_ppa} />
+              <StatRow label="Def. PPA" value={fmt(data.efficiency.def_ppa)} rank={data.ranks?.def_ppa} />
+              <StatRow label="Off. EPA (Rush)" value={fmt(data.efficiency.off_epa_rush, 2)} rank={data.ranks?.off_epa_rush} />
+              <StatRow label="Off. EPA (Pass)" value={fmt(data.efficiency.off_epa_pass, 2)} rank={data.ranks?.off_epa_pass} />
+              <StatRow label="Def. EPA (Rush)" value={fmt(data.efficiency.def_epa_rush, 2)} rank={data.ranks?.def_epa_rush} />
+              <StatRow label="Def. EPA (Pass)" value={fmt(data.efficiency.def_epa_pass, 2)} rank={data.ranks?.def_epa_pass} />
               <StatRow label="Plays/Game" value={fmt(data.efficiency.plays_per_game)} />
-              <StatRow label="Def. Havoc Rate" value={fmtPct(data.efficiency.def_havoc_rate)} percentile={data.percentiles?.def_havoc_rate} />
+              <StatRow label="Def. Havoc Rate" value={fmtPct(data.efficiency.def_havoc_rate)} rank={data.ranks?.def_havoc_rate} />
             </div>
 
             <div className="stats-section">
               <h3>SP+</h3>
-              <StatRow label="Overall" value={fmt(data.sp_plus?.rating)} percentile={data.percentiles?.sp_plus_rating} />
-              <StatRow label="Offense" value={fmt(data.sp_plus?.offense)} percentile={data.percentiles?.sp_plus_offense} />
-              <StatRow label="Defense" value={fmt(data.sp_plus?.defense)} percentile={data.percentiles?.sp_plus_defense} />
+              <StatRow label="Overall" value={fmt(data.sp_plus?.rating)} rank={data.ranks?.sp_plus_rating} />
+              <StatRow label="Offense" value={fmt(data.sp_plus?.offense)} rank={data.ranks?.sp_plus_offense} />
+              <StatRow label="Defense" value={fmt(data.sp_plus?.defense)} rank={data.ranks?.sp_plus_defense} />
             </div>
 
             <div className="stats-section">
               <h3>Talent</h3>
-              <StatRow label="Composite" value={fmt(data.talent?.composite)} percentile={data.percentiles?.talent_composite} />
+              <StatRow label="Composite" value={fmt(data.talent?.composite)} rank={data.ranks?.talent_composite} />
             </div>
           </div>
         )}
