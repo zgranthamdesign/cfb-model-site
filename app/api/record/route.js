@@ -49,7 +49,7 @@ export async function GET(request) {
     return NextResponse.json({ error: gamesError.message }, { status: 500 });
   }
 
-  const teamIds = [...new Set(games.flatMap(g => [g.home_team_id, g.away_team_id]))];
+  const teamIds = [...new Set(games.flatMap(g => [g.home_team_id, g.away_team_id]).filter(id => id != null))];
   const { data: teams } = await supabase
     .from("teams")
     .select("team_id, school")
