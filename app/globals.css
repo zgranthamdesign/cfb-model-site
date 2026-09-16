@@ -302,6 +302,9 @@ select:focus {
 }
 
 .game-card-team-info {
+  /* Lets a long team name shrink (it already ellipsizes) instead of pushing
+     the score column past the card edge on phones. */
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -545,20 +548,43 @@ select:focus {
   font-weight: 500;
 }
 
+/* Lines table: spread and total rows under Open / Current / Proj. columns.
+   Replaces a single row of four columns, which had no room for the market
+   total without becoming unreadable on phones. */
 .game-card-lines-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Proj. only ever holds a short number ("-0.5", "54.7"), so it stays
+     narrow and Open / Current share the rest. */
+  /* Label column is a fixed width (not auto) so Open / Current / Proj. line
+     up from card to card regardless of how long the favorite's name is. */
+  grid-template-columns: 136px minmax(0, 1fr) minmax(0, 1fr) 64px;
   margin: 4px -18px 0;
   border-top: 1px solid #e0e2dc;
 }
 
-.game-card-line-col {
-  padding: 10px 18px;
+.line-cell {
+  padding: 8px 12px;
   border-left: 1px solid #e0e2dc;
+  border-top: 1px solid #e0e2dc;
+  min-width: 0;
+  /* Center content vertically so every row, header included, has equal
+     space above and below its text. */
+  display: flex;
+  align-items: center;
 }
 
-.game-card-line-col:first-child {
+/* First column (row labels) has no left rule; header row has no top rule. */
+.line-cell:nth-child(4n + 1) {
   border-left: none;
+  padding-left: 18px;
+}
+
+.line-cell:nth-child(-n + 4) {
+  border-top: none;
+}
+
+.line-cell:nth-child(4n) {
+  padding-right: 18px;
 }
 
 .line-col-label {
@@ -568,7 +594,17 @@ select:focus {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #676960;
-  margin-bottom: 3px;
+}
+
+.line-row-label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #676960;
+  display: flex;
+  align-items: center;
 }
 
 .line-col-value {
@@ -577,7 +613,47 @@ select:focus {
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
-  padding-top: 6px;
+  /* No overflow clipping: the Current spread cell hosts the per-book
+     tooltip, which must be able to extend outside the cell. */
+}
+
+.line-num {
+  white-space: nowrap;
+}
+
+/* Spread row label: "SPREAD" with the market favorite's name beneath it. */
+.line-row-label-stack {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+}
+
+.line-row-team {
+  font-family: 'Geist', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  white-space: normal;
+  line-height: 1.2;
+}
+
+@media (max-width: 600px) {
+  /* Tighter gutters so a single long name like "Northwestern" fits. */
+  .line-cell {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .game-card-lines-grid {
+    grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr) 52px;
+  }
+
+  .line-row-team {
+    font-size: 10px;
+    max-width: none;
+  }
 }
 
 /* Footer strip under the lines grid. Holds MODEL PICKS and EXPECTED rows,
@@ -1390,4 +1466,117 @@ th {
   line-height: 1;
   width: 16px;
   color: var(--text-faint);
+}
+
+/* ------------------------------------------------------------------ */
+/* Game cards on phones                                                */
+/* ------------------------------------------------------------------ */
+/* One step down across the card so spreads, team names and picks fit on a
+   single line where possible, rather than wrapping and breaking the card's
+   rhythm. Proportions between elements are kept the same as desktop. */
+@media (max-width: 600px) {
+  .game-card {
+    padding: 14px 14px;
+  }
+
+  .game-card-meta,
+  .game-card-venue {
+    font-size: 10px;
+  }
+
+  .game-card-team-info {
+    font-size: 14px;
+    gap: 6px;
+  }
+
+  .game-card-team-record {
+    font-size: 10px;
+  }
+
+  .game-card-rank {
+    font-size: 10px;
+    width: 28px;
+  }
+
+  .team-logo-slot,
+  .team-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .team-logo-fcs {
+    width: 26px;
+    height: 26px;
+    font-size: 8.5px;
+  }
+
+  .game-card-team-row {
+    grid-template-columns: minmax(0, 1fr) 78px;
+  }
+
+  .score-final {
+    font-size: 20px;
+    min-width: 24px;
+  }
+
+  .score-proj {
+    font-size: 10.5px;
+    width: 36px;
+    padding-left: 4px;
+  }
+
+  .game-card-lines-grid {
+    margin-left: -14px;
+    margin-right: -14px;
+  }
+
+  .line-cell {
+    padding: 7px 6px;
+  }
+
+  .line-cell:nth-child(4n + 1) {
+    padding-left: 14px;
+  }
+
+  .line-cell:nth-child(4n) {
+    padding-right: 14px;
+  }
+
+  .line-col-label,
+  .line-row-label {
+    font-size: 8px;
+  }
+
+  .line-col-value {
+    font-size: 10.5px;
+  }
+
+  .game-card-footer {
+    margin: -8px -14px -14px;
+  }
+
+  .game-card-footer-row {
+    padding: 10px 14px;
+  }
+
+  .game-card-footer-row .stat-label-meta {
+    font-size: 9px;
+    margin-right: 8px;
+  }
+
+  .game-card-picks-value {
+    font-size: 9px;
+    column-gap: 4px;
+  }
+
+  .ats-badge {
+    min-width: 17px;
+    height: 17px;
+    padding: 0 3px;
+  }
+
+  .ats-badge .material-symbols-rounded,
+  .expected-chevron {
+    font-size: 14px;
+  }
 }

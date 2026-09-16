@@ -231,6 +231,8 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
     row.market_spread_open_favorite,
     row.market_spread_favorite,
     row.model_spread_vs_market_favorite,
+    row.market_total_open,
+    row.market_total,
     row.model_total,
   ].some(v => v != null);
 
@@ -261,28 +263,39 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
 
       {hasLines && (
       <div className="game-card-lines-grid">
-        <div className="game-card-line-col">
-          <div className="line-col-label">Open</div>
-          <div className="line-col-value">{row.market_favorite_team} {fmtHalf(row.market_spread_open_favorite)}</div>
+        {/* Header row */}
+        <div className="line-cell line-corner" />
+        <div className="line-cell line-col-label">Open</div>
+        <div className="line-cell line-col-label">Current</div>
+        <div className="line-cell line-col-label">Proj.</div>
+
+        {/* Spread row. Every number is relative to the market favorite,
+            named once in the row label: "-6" means that team favored by 6,
+            and a "+" in Proj. means the model has them losing. Naming the
+            team in each cell left Proj. ambiguous and wrapped on phones. */}
+        <div className="line-cell line-row-label line-row-label-stack">
+          <span>Spread</span>
+          {row.market_favorite_team && (
+            <span className="line-row-team">{row.market_favorite_team}</span>
+          )}
         </div>
-        <div className="game-card-line-col">
-          <div className="line-col-label">Current</div>
-          <div className="line-col-value">
-            {row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}
+        <div className="line-cell line-col-value">{fmtHalf(row.market_spread_open_favorite)}</div>
+        <div className="line-cell line-col-value">
+          <span className="line-num">
+            {fmtHalf(row.market_spread_favorite)}
             <BookBreakdown
               team={row.market_favorite_team}
               books={row.market_favorite_team === row.home_team ? row.home_books : row.away_books}
             />
-          </div>
+          </span>
         </div>
-        <div className="game-card-line-col">
-          <div className="line-col-label">Proj. Line</div>
-          <div className="line-col-value">{fmtHalfSigned(row.model_spread_vs_market_favorite)}</div>
-        </div>
-        <div className="game-card-line-col">
-          <div className="line-col-label">Proj. Total</div>
-          <div className="line-col-value">{fmt(row.model_total)}</div>
-        </div>
+        <div className="line-cell line-col-value">{fmtHalfSigned(row.model_spread_vs_market_favorite)}</div>
+
+        {/* Total row */}
+        <div className="line-cell line-row-label">Total</div>
+        <div className="line-cell line-col-value">{fmtHalf(row.market_total_open)}</div>
+        <div className="line-cell line-col-value">{fmtHalf(row.market_total)}</div>
+        <div className="line-cell line-col-value">{fmt(row.model_total)}</div>
       </div>
       )}
 
