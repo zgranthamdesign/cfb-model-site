@@ -1109,9 +1109,22 @@ th {
 .schedule-score {
   font-family: 'Geist', sans-serif;
   font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   min-width: 40px;
   text-align: right;
+}
+
+/* Expected score beside the actual one, in the same muted parenthetical
+   style as the projected score on game cards. Fixed width so the actual
+   scores stay aligned down the schedule. */
+.schedule-expected {
+  font-family: 'Geist', sans-serif;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  width: 48px;
+  text-align: left;
 }
 
 .expected-flag {

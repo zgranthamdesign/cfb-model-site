@@ -77,6 +77,14 @@ async function getSchedule(season, teamId) {
     .in("team_id", opponentIds);
   const opponentById = Object.fromEntries((opponents || []).map(t => [t.team_id, t]));
 
+  // Re-graded expected scores (sync_expected_scores.py). Ignored on error so
+  // the schedule still loads for weeks that have not been synced.
+  const { data: expectedRows } = await supabase
+    .from("expected_scores")
+    .select("game_id, home_expected, away_expected")
+    .in("game_id", games.map(g => g.game_id));
+  const expectedByGame = Object.fromEntries((expectedRows || []).map(e => [e.game_id, e]));
+
   return games.map(g => {
     const isHome = g.home_team_id === teamId;
     const opponentId = isHome ? g.away_team_id : g.home_team_id;
@@ -84,6 +92,7 @@ async function getSchedule(season, teamId) {
     const opponent = opponentById[opponentId];
     const teamScore = isHome ? g.home_points : g.away_points;
     const oppScore = isHome ? g.away_points : g.home_points;
+    const expected = g.completed ? expectedByGame[g.game_id] : null;
     let result = null;
     if (g.completed && teamScore != null && oppScore != null) {
       result = teamScore > oppScore ? "W" : teamScore < oppScore ? "L" : "T";
@@ -95,6 +104,8 @@ async function getSchedule(season, teamId) {
       home_away: isHome ? "home" : "away",
       team_score: teamScore,
       opp_score: oppScore,
+      team_expected: expected ? (isHome ? expected.home_expected : expected.away_expected) : null,
+      opp_expected: expected ? (isHome ? expected.away_expected : expected.home_expected) : null,
       completed: g.completed,
       result,
     };

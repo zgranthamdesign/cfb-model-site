@@ -479,6 +479,13 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
                           {g.result}
                         </span>
                         <span className="schedule-score">{g.team_score}-{g.opp_score}</span>
+                        {/* Always rendered on completed games so scores line up
+                            even where no expected score exists (FCS games). */}
+                        <span className="schedule-expected">
+                          {g.team_expected != null && g.opp_expected != null
+                            ? `(${fmtInt(g.team_expected)}-${fmtInt(g.opp_expected)})`
+                            : ""}
+                        </span>
                       </>
                     ) : (
                       <span className="stat-value">—</span>
