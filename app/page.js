@@ -85,7 +85,7 @@ function rankColors(rank, total) {
   };
 }
 
-function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, onSelect }) {
+function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, record, onSelect }) {
   const rankStyle = rankColors(rank, totalTeams);
   return (
     <div className="game-card-team-row" onClick={() => onSelect && onSelect(name)}>
@@ -96,7 +96,12 @@ function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, o
         <span className="team-logo-slot">
           {logo && <img src={logo} alt="" className="team-logo" />}
         </span>
-        <span className="game-card-team-name">{name}</span>
+        <span className="game-card-team-name-block">
+          <span className="game-card-team-name">{name}</span>
+          {record && (
+            <span className="game-card-team-record">{record.wins}-{record.losses}</span>
+          )}
+        </span>
       </div>
       {completed && finalScore != null ? (
         <span className="game-card-score">
@@ -135,81 +140,77 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
     <div className="game-card">
       <div className="game-card-header-row">
         <div className="game-card-meta">{fmtTime(row.start_date)}</div>
-        <div className="game-card-score-label">{row.completed ? "Final" : "Proj"}</div>
+        {row.venue_name && (
+          <div className="game-card-venue">
+            {row.venue_name}{row.venue_location ? ` · ${row.venue_location}` : ""}
+          </div>
+        )}
       </div>
 
       <div className="game-card-teams">
-        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.away_final_score} completed={row.completed} onSelect={onSelectTeam} />
-        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.home_final_score} completed={row.completed} onSelect={onSelectTeam} />
+        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.away_final_score} completed={row.completed} record={row.away_record} onSelect={onSelectTeam} />
+        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.home_final_score} completed={row.completed} record={row.home_record} onSelect={onSelectTeam} />
       </div>
 
-      <div className="game-card-divider" />
-
-      {row.projected_winner && (
-        <div className="game-card-projection">
-          <span className="stat-label-meta">Model:</span> <strong>{row.projected_winner}</strong> -{fmt(row.projected_margin)}
-          {row.model_total != null && (
-            <> / <strong>Total:</strong> {fmt(row.model_total)}</>
-          )}
+      <div className="game-card-lines-grid">
+        <div className="game-card-line-col">
+          <div className="line-col-label">Open</div>
+          <div className="line-col-value">{row.market_favorite_team} {fmtHalf(row.market_spread_open_favorite)}</div>
         </div>
-      )}
-
-      <div className="game-card-divider" />
-
-      <div className="game-card-stat-row">
-        <span>
-          <span className="stat-label-meta">Market Spread:</span> <span className="game-card-stat-value">{row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}</span>
-          {row.market_spread_open_favorite != null && (
-            <span className="open-cell"> (Open {fmtHalf(row.market_spread_open_favorite)})</span>
-          )}
-          <BookBreakdown
-            team={row.market_favorite_team}
-            books={row.market_favorite_team === row.home_team ? row.home_books : row.away_books}
-          />
-        </span>
-      </div>
-
-      <div className="game-card-stat-row">
-        <span>
-          <span className="stat-label-meta">Market Total:</span> <span className="game-card-stat-value">{fmtHalf(row.market_total)}</span>
-          {row.market_total_open != null && (
-            <span className="open-cell"> (Open {fmtHalf(row.market_total_open)})</span>
-          )}
-        </span>
+        <div className="game-card-line-col">
+          <div className="line-col-label">Current</div>
+          <div className="line-col-value">
+            {row.market_favorite_team} {fmtHalf(row.market_spread_favorite)}
+            <BookBreakdown
+              team={row.market_favorite_team}
+              books={row.market_favorite_team === row.home_team ? row.home_books : row.away_books}
+            />
+          </div>
+        </div>
+        <div className="game-card-line-col">
+          <div className="line-col-label">Proj. Line</div>
+          <div className="line-col-value">{fmtHalfSigned(row.model_spread_vs_market_favorite)}</div>
+        </div>
+        <div className="game-card-line-col">
+          <div className="line-col-label">Proj. Total</div>
+          <div className="line-col-value">{fmt(row.model_total)}</div>
+        </div>
       </div>
 
       {(row.show_spread_bet || row.show_total_bet) && (
-        <div className="game-card-projection model-bet-line">
-          <span className="stat-label-meta">Model Bet:</span>{" "}
-          {row.show_spread_bet && row.bet_team && (
-            <>
-              <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
-              {row.ats_result && (
-                <span className={
-                  row.ats_result === "COVER" ? "ats-badge ats-cover" :
-                  row.ats_result === "NO_COVER" ? "ats-badge ats-miss" :
-                  "ats-badge ats-push"
-                }>
-                  {row.ats_result === "COVER" ? "✓" : row.ats_result === "NO_COVER" ? "✗" : "Push"}
-                </span>
-              )}
-            </>
-          )}
-          {row.show_spread_bet && row.show_total_bet && " / "}
-          {row.show_total_bet && row.total_pick && (
-            <>
-              <strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
-              {row.total_result && (
-                <span className={
-                  row.total_result === "COVER" ? "ats-badge ats-cover" :
-                  row.total_result === "NO_COVER" ? "ats-badge ats-miss" :
-                  "ats-badge ats-push"
-                }>
-                  {row.total_result === "COVER" ? "✓" : row.total_result === "NO_COVER" ? "✗" : "Push"}
-                </span>
-              )}
-            </>
-          )}
+        <div className="game-card-picks-row">
+          <span className="stat-label-meta">Model Picks</span>
+          <span className="game-card-picks-value">
+            {row.show_spread_bet && row.bet_team && (
+              <>
+                <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
+                {row.ats_result && (
+                  <span className={
+                    row.ats_result === "COVER" ? "ats-badge ats-cover" :
+                    row.ats_result === "NO_COVER" ? "ats-badge ats-miss" :
+                    "ats-badge ats-push"
+                  }>
+                    {row.ats_result === "COVER" ? "✓" : row.ats_result === "NO_COVER" ? "✗" : "Push"}
+                  </span>
+                )}
+              </>
+            )}
+            {row.show_spread_bet && row.show_total_bet && " / "}
+            {row.show_total_bet && row.total_pick && (
+              <>
+                <strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
+                {row.total_result && (
+                  <span className={
+                    row.total_result === "COVER" ? "ats-badge ats-cover" :
+                    row.total_result === "NO_COVER" ? "ats-badge ats-miss" :
+                    "ats-badge ats-push"
+                  }>
+                    {row.total_result === "COVER" ? "✓" : row.total_result === "NO_COVER" ? "✗" : "Push"}
+                  </span>
+                )}
+              </>
+            )}
+          </span>
         </div>
       )}
 

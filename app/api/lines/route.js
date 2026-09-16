@@ -26,7 +26,7 @@ export async function GET(request) {
 
   const { data: games, error: gamesError } = await supabase
     .from("games")
-    .select("game_id, home_team_id, away_team_id, start_date, completed, home_points, away_points")
+    .select("game_id, home_team_id, away_team_id, start_date, completed, home_points, away_points, venue, venue_id, home_opponent_name, away_opponent_name")
     .eq("season", season)
     .eq("week", week);
 
@@ -34,12 +34,40 @@ export async function GET(request) {
     return NextResponse.json({ error: gamesError.message }, { status: 500 });
   }
 
-  const teamIds = [...new Set(games.flatMap(g => [g.home_team_id, g.away_team_id]))];
+  const teamIds = [...new Set(games.flatMap(g => [g.home_team_id, g.away_team_id]).filter(id => id != null))];
   const { data: teams } = await supabase
     .from("teams")
     .select("team_id, school, conference, logo_url")
     .in("team_id", teamIds);
   const teamById = Object.fromEntries((teams || []).map(t => [t.team_id, t]));
+
+  const venueIds = [...new Set(games.map(g => g.venue_id).filter(Boolean))];
+  const { data: venues } = await supabase
+    .from("venues")
+    .select("venue_id, name, city, state")
+    .in("venue_id", venueIds);
+  const venueById = Object.fromEntries((venues || []).map(v => [v.venue_id, v]));
+
+  // Team win-loss records, season to date, computed from completed games.
+  const { data: allGamesForRecords } = await supabase
+    .from("games")
+    .select("home_team_id, away_team_id, home_points, away_points, completed")
+    .eq("season", season)
+    .eq("completed", true)
+    .or(`home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`);
+
+  const recordByTeam = {};
+  for (const id of teamIds) recordByTeam[id] = { wins: 0, losses: 0 };
+  for (const g of allGamesForRecords || []) {
+    if (g.home_points == null || g.away_points == null) continue;
+    const homeWon = g.home_points > g.away_points;
+    if (recordByTeam[g.home_team_id]) {
+      homeWon ? recordByTeam[g.home_team_id].wins++ : recordByTeam[g.home_team_id].losses++;
+    }
+    if (recordByTeam[g.away_team_id]) {
+      homeWon ? recordByTeam[g.away_team_id].losses++ : recordByTeam[g.away_team_id].wins++;
+    }
+  }
 
   // Power ratings and rank, computed league-wide (not just this week's
   // teams) so the rank number reflects the full 130+ team field.
@@ -77,6 +105,9 @@ export async function GET(request) {
     const home = teamById[g.home_team_id];
     const away = teamById[g.away_team_id];
     const line = lineByGame[g.game_id] || {};
+    const venue = venueById[g.venue_id];
+    const venue_name = venue?.name || g.venue || null;
+    const venue_location = venue && venue.city && venue.state ? `${venue.city}, ${venue.state}` : null;
 
     // favorite_tag/underdog_tag are stored relative to who the MARKET
     // favors (home_is_favorite), not relative to home/away directly.
@@ -115,12 +146,16 @@ export async function GET(request) {
     let market_favorite_team = null;
     let market_spread_favorite = null;
     let market_spread_open_favorite = null;
+    let model_spread_vs_market_favorite = null;
     if (line.market_spread != null && home && away) {
       const home_is_favorite = line.market_spread < 0;
       market_favorite_team = home_is_favorite ? home.school : away.school;
       market_spread_favorite = -Math.abs(line.market_spread);
       if (line.market_spread_open != null) {
         market_spread_open_favorite = home_is_favorite ? line.market_spread_open : -line.market_spread_open;
+      }
+      if (line.model_spread != null) {
+        model_spread_vs_market_favorite = home_is_favorite ? line.model_spread : -line.model_spread;
       }
     }
 
@@ -161,14 +196,16 @@ export async function GET(request) {
 
     return {
       game_id: g.game_id,
-      home_team: home?.school || "?",
-      away_team: away?.school || "?",
+      home_team: home?.school || g.home_opponent_name || "?",
+      away_team: away?.school || g.away_opponent_name || "?",
       home_logo: home?.logo_url || null,
       away_logo: away?.logo_url || null,
       home_power_rating: ratingByTeam[g.home_team_id] ?? null,
       away_power_rating: ratingByTeam[g.away_team_id] ?? null,
       home_power_rank: rankByTeam[g.home_team_id] ?? null,
       away_power_rank: rankByTeam[g.away_team_id] ?? null,
+      home_record: recordByTeam[g.home_team_id] || null,
+      away_record: recordByTeam[g.away_team_id] || null,
       home_projected_score,
       away_projected_score,
       completed: g.completed ?? false,
@@ -179,12 +216,15 @@ export async function GET(request) {
       total_result,
       conference: home?.conference || "",
       start_date: g.start_date || null,
+      venue_name,
+      venue_location,
       model_spread: line.model_spread ?? null,
       market_spread: line.market_spread ?? null,
       market_spread_open: line.market_spread_open ?? null,
       market_favorite_team,
       market_spread_favorite,
       market_spread_open_favorite,
+      model_spread_vs_market_favorite,
       bet_team,
       bet_spread,
       bet_spread_open,

@@ -59,7 +59,7 @@ function computeSourceRanks(allRatings, teamId) {
 async function getSchedule(season, teamId) {
   const { data: games } = await supabase
     .from("games")
-    .select("game_id, week, home_team_id, away_team_id, home_points, away_points, completed")
+    .select("game_id, week, home_team_id, away_team_id, home_opponent_name, away_opponent_name, home_points, away_points, completed")
     .eq("season", season)
     .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
     .order("week", { ascending: true });
@@ -67,7 +67,9 @@ async function getSchedule(season, teamId) {
   if (!games || games.length === 0) return [];
 
   const opponentIds = [...new Set(
-    games.map(g => (g.home_team_id === teamId ? g.away_team_id : g.home_team_id))
+    games
+      .map(g => (g.home_team_id === teamId ? g.away_team_id : g.home_team_id))
+      .filter(id => id != null)
   )];
   const { data: opponents } = await supabase
     .from("teams")
@@ -78,6 +80,7 @@ async function getSchedule(season, teamId) {
   return games.map(g => {
     const isHome = g.home_team_id === teamId;
     const opponentId = isHome ? g.away_team_id : g.home_team_id;
+    const opponentNameFallback = isHome ? g.away_opponent_name : g.home_opponent_name;
     const opponent = opponentById[opponentId];
     const teamScore = isHome ? g.home_points : g.away_points;
     const oppScore = isHome ? g.away_points : g.home_points;
@@ -87,7 +90,7 @@ async function getSchedule(season, teamId) {
     }
     return {
       week: g.week,
-      opponent: opponent?.school || "?",
+      opponent: opponent?.school || opponentNameFallback || "?",
       opponent_logo: opponent?.logo_url || null,
       home_away: isHome ? "home" : "away",
       team_score: teamScore,
