@@ -85,16 +85,26 @@ function rankColors(rank, total) {
   };
 }
 
-function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, record, onSelect }) {
+function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, record, isFcs, onSelect }) {
   const rankStyle = rankColors(rank, totalTeams);
   return (
     <div className="game-card-team-row" onClick={() => onSelect && onSelect(name)}>
       <div className="game-card-team-info">
-        <span className="game-card-rank" style={rank != null ? (rankStyle || undefined) : undefined}>
-          {rank != null ? `#${rank}` : ""}
-        </span>
+        {isFcs ? (
+          <span className="game-card-rank rank-fcs" aria-label="Unranked">—</span>
+        ) : (
+          <span className="game-card-rank" style={rank != null ? (rankStyle || undefined) : undefined}>
+            {rank != null ? `#${rank}` : ""}
+          </span>
+        )}
         <span className="team-logo-slot">
-          {logo && <img src={logo} alt="" className="team-logo" />}
+          {logo ? (
+            <img src={logo} alt="" className="team-logo" />
+          ) : isFcs ? (
+            // FCS opponents have no logo in our data; a neutral placeholder
+            // keeps their row aligned with the FBS team below it.
+            <span className="team-logo-fcs">FCS</span>
+          ) : null}
         </span>
         <span className="game-card-team-name-block">
           <span className="game-card-team-name">{name}</span>
@@ -201,6 +211,16 @@ function ExpectedRow({ row }) {
 }
 
 function GameCard({ row, totalTeams, onSelectTeam }) {
+  // Games against FCS opponents have no market or model lines. Rendering the
+  // grid anyway produced four columns of dashes that looked broken, so the
+  // grid only shows when at least one value exists.
+  const hasLines = [
+    row.market_spread_open_favorite,
+    row.market_spread_favorite,
+    row.model_spread_vs_market_favorite,
+    row.model_total,
+  ].some(v => v != null);
+
   return (
     <div className="game-card">
       <div className="game-card-header-row">
@@ -213,10 +233,11 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
       </div>
 
       <div className="game-card-teams">
-        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.away_final_score} completed={row.completed} record={row.away_record} onSelect={onSelectTeam} />
-        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.home_final_score} completed={row.completed} record={row.home_record} onSelect={onSelectTeam} />
+        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.away_final_score} completed={row.completed} record={row.away_record} isFcs={row.away_is_fcs} onSelect={onSelectTeam} />
+        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.home_final_score} completed={row.completed} record={row.home_record} isFcs={row.home_is_fcs} onSelect={onSelectTeam} />
       </div>
 
+      {hasLines && (
       <div className="game-card-lines-grid">
         <div className="game-card-line-col">
           <div className="line-col-label">Open</div>
@@ -241,6 +262,7 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
           <div className="line-col-value">{fmt(row.model_total)}</div>
         </div>
       </div>
+      )}
 
       {((row.show_spread_bet || row.show_total_bet) || row.home_expected_score != null) && (
       <div className="game-card-footer">

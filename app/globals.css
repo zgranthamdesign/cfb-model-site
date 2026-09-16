@@ -341,6 +341,28 @@ select:focus {
   color: var(--text-faint);
 }
 
+/* FCS opponents: grey dash in place of a power rank. */
+.game-card-rank.rank-fcs {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+/* FCS opponents: grey "FCS" tile in place of a team logo. */
+.team-logo-fcs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .team-logo-slot {
   display: inline-flex;
   align-items: center;

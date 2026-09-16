@@ -208,6 +208,9 @@ export async function GET(request) {
       game_id: g.game_id,
       home_team: home?.school || g.home_opponent_name || "?",
       away_team: away?.school || g.away_opponent_name || "?",
+      // Opponents outside our FBS teams table (stored by name only) are FCS.
+      home_is_fcs: g.home_team_id == null,
+      away_is_fcs: g.away_team_id == null,
       home_logo: home?.logo_url || null,
       away_logo: away?.logo_url || null,
       home_power_rating: ratingByTeam[g.home_team_id] ?? null,
