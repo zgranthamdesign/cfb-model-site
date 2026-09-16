@@ -98,6 +98,7 @@ async function getSchedule(season, teamId) {
       result = teamScore > oppScore ? "W" : teamScore < oppScore ? "L" : "T";
     }
     return {
+      game_id: g.game_id,
       week: g.week,
       opponent: opponent?.school || opponentNameFallback || "?",
       opponent_logo: opponent?.logo_url || null,

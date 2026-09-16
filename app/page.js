@@ -543,7 +543,24 @@ function GameBreakdownPanel({ row, onClose }) {
   );
 }
 
-function TeamStatsPanel({ team, data, loading, onClose }) {
+function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
+  // Schedule rows only know "this team vs opponent"; the breakdown modal wants
+  // the game-card shape (away/home), so rebuild it from the row's orientation.
+  function breakdownRowFor(g) {
+    const us = { team, logo: data?.logo_url || null, score: g.team_score };
+    const them = { team: g.opponent, logo: g.opponent_logo, score: g.opp_score };
+    const [away, home] = g.home_away === "home" ? [them, us] : [us, them];
+    return {
+      game_id: g.game_id,
+      away_team: away.team,
+      home_team: home.team,
+      away_logo: away.logo,
+      home_logo: home.logo,
+      away_final_score: away.score,
+      home_final_score: home.score,
+    };
+  }
+
   const [modalTab, setModalTab] = useState("overview");
 
   return (
@@ -674,7 +691,22 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
               <div className="empty">No schedule available yet for {team}.</div>
             ) : (
               data.schedule.map(g => (
-                <div className="schedule-row" key={g.week}>
+                <div
+                  className={`schedule-row ${g.team_expected != null ? "is-clickable" : ""}`}
+                  key={g.week}
+                  {...(g.team_expected != null && onOpenBreakdown ? {
+                    role: "button",
+                    tabIndex: 0,
+                    "aria-label": `See the expected score breakdown vs ${g.opponent}`,
+                    onClick: () => onOpenBreakdown(breakdownRowFor(g)),
+                    onKeyDown: e => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onOpenBreakdown(breakdownRowFor(g));
+                      }
+                    },
+                  } : {})}
+                >
                   <span className="schedule-week">Wk {g.week}</span>
                   <span className="schedule-opponent">
                     {g.home_away === "away" ? "@ " : "vs "}
@@ -694,6 +726,9 @@ function TeamStatsPanel({ team, data, loading, onClose }) {
                           {g.team_expected != null && g.opp_expected != null
                             ? `(${fmtInt(g.team_expected)}-${fmtInt(g.opp_expected)})`
                             : ""}
+                        </span>
+                        <span className="material-symbols-rounded schedule-chevron" aria-hidden="true">
+                          {g.team_expected != null ? "chevron_right" : ""}
                         </span>
                       </>
                     ) : (
@@ -993,17 +1028,20 @@ export default function Home() {
         )
       )}
 
-      {breakdownRow && (
-        <GameBreakdownPanel row={breakdownRow} onClose={() => setBreakdownRow(null)} />
-      )}
-
       {statsTeam && (
         <TeamStatsPanel
           team={statsTeam}
           data={statsData}
           loading={statsLoading}
           onClose={closeTeamStats}
+          onOpenBreakdown={setBreakdownRow}
         />
+      )}
+
+      {/* Rendered after the team panel so it stacks on top when opened from a
+          team's schedule; closing it returns to that schedule. */}
+      {breakdownRow && (
+        <GameBreakdownPanel row={breakdownRow} onClose={() => setBreakdownRow(null)} />
       )}
     </div>
   );

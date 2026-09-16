@@ -1367,3 +1367,27 @@ th {
   color: var(--text-faint);
   margin: 0;
 }
+
+.schedule-row.is-clickable {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s ease;
+}
+
+.schedule-row.is-clickable:hover {
+  background: var(--bg-hover);
+}
+
+.schedule-row.is-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Always occupies space on completed rows so scores stay aligned whether or
+   not the row is clickable. */
+.schedule-chevron {
+  font-size: 16px;
+  line-height: 1;
+  width: 16px;
+  color: var(--text-faint);
+}
