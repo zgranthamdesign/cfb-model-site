@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;540;600;700&family=Geist+Mono:wght@400;500;600;650;700&display=swap');
 /* Only the two icons we use, so the icon font stays tiny. display=block avoids
    flashing the literal words "check"/"close" before the font arrives. */
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,500..700,0,0&icon_names=check,close&display=block');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,500..700,0,0&icon_names=check,chevron_right,close&display=block');
 
 * {
   box-sizing: border-box;
@@ -1169,4 +1169,201 @@ th {
 /* Model and market agree; shown where a pick would go. */
 .picks-no-bet {
   color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ */
+/* Expected score breakdown                                            */
+/* ------------------------------------------------------------------ */
+
+.game-card-expected-row.is-clickable {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.game-card-expected-row.is-clickable:hover {
+  background: var(--bg-hover);
+}
+
+.game-card-expected-row.is-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.expected-chevron {
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-faint);
+  margin-left: 2px;
+}
+
+.breakdown-panel {
+  max-width: 560px;
+}
+
+.breakdown-title {
+  flex: 1;
+}
+
+.breakdown-title h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.breakdown-subtitle {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.bd-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.bd-summary-team {
+  border: 1px solid #e0e2dc;
+  padding: 10px 12px;
+}
+
+.bd-summary-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+
+.bd-summary-name span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bd-logo {
+  width: 24px;
+  height: 24px;
+}
+
+.bd-summary-scores {
+  display: flex;
+  gap: 14px;
+}
+
+.bd-summary-scores > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bd-summary-value {
+  font-family: 'Geist Mono', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.bd-summary-value.bd-expected {
+  color: var(--text);
+}
+
+.bd-section-heading {
+  color: #17462f;
+  font-weight: 700;
+  font-size: 10px;
+  margin: 4px 0 6px;
+}
+
+.bd-table {
+  margin-bottom: 18px;
+  font-size: 12.5px;
+}
+
+.bd-row {
+  display: grid;
+  align-items: center;
+  column-gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.bd-table-stats .bd-row {
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+}
+
+.bd-table-points .bd-row {
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
+}
+
+.bd-row > span:not(.bd-label) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bd-head {
+  border-top: none;
+  padding-top: 0;
+}
+
+.bd-head > span {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #676960;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bd-label {
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bd-hint {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.bd-avg {
+  color: var(--text-faint);
+}
+
+.bd-pts {
+  color: var(--text-muted);
+}
+
+.bd-pos {
+  color: var(--positive);
+  font-weight: 600;
+}
+
+.bd-neg {
+  color: var(--negative);
+  font-weight: 600;
+}
+
+.bd-total {
+  border-top: 1px solid #cccec6;
+  font-weight: 700;
+}
+
+.bd-total .bd-label {
+  color: var(--text);
+}
+
+.bd-note {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-faint);
+  margin: 0;
 }
