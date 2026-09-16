@@ -94,6 +94,15 @@ export async function GET(request) {
     .in("game_id", gameIds);
   const lineByGame = Object.fromEntries((lines || []).map(l => [l.game_id, l]));
 
+  // Re-graded expected scores for completed games (sync_expected_scores.py).
+  // An error here is ignored rather than failing the whole response, so the
+  // page keeps working before the table exists or before a week is synced.
+  const { data: expectedRows } = await supabase
+    .from("expected_scores")
+    .select("game_id, home_expected, away_expected, garbage_time, overtime")
+    .in("game_id", gameIds);
+  const expectedByGame = Object.fromEntries((expectedRows || []).map(e => [e.game_id, e]));
+
   const { data: syncRows } = await supabase
     .from("sync_status")
     .select("last_synced_at")
@@ -105,6 +114,7 @@ export async function GET(request) {
     const home = teamById[g.home_team_id];
     const away = teamById[g.away_team_id];
     const line = lineByGame[g.game_id] || {};
+    const expected = g.completed ? expectedByGame[g.game_id] : null;
     const venue = venueById[g.venue_id];
     const venue_name = venue?.name || g.venue || null;
     const venue_location = venue && venue.city && venue.state ? `${venue.city}, ${venue.state}` : null;
@@ -243,6 +253,10 @@ export async function GET(request) {
       projected_win_pct,
       home_books,
       away_books,
+      home_expected_score: expected?.home_expected ?? null,
+      away_expected_score: expected?.away_expected ?? null,
+      expected_garbage_time: expected?.garbage_time ?? false,
+      expected_overtime: expected?.overtime ?? false,
     };
   });
 

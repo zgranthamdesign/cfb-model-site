@@ -135,6 +135,71 @@ function BookBreakdown({ team, books }) {
   );
 }
 
+// Win/loss marker for a graded pick. Uses Google Material Symbols (loaded in
+// globals.css) rather than the ✓/✗ text glyphs, which rendered unevenly.
+function ResultBadge({ result }) {
+  if (!result) return null;
+  if (result === "PUSH") {
+    return <span className="ats-badge ats-push">Push</span>;
+  }
+  const won = result === "COVER";
+  return (
+    <span
+      className={won ? "ats-badge ats-cover" : "ats-badge ats-miss"}
+      role="img"
+      aria-label={won ? "Won" : "Lost"}
+    >
+      <span className="material-symbols-rounded" aria-hidden="true">
+        {won ? "check" : "close"}
+      </span>
+    </span>
+  );
+}
+
+// EXPECTED row: what each team's play was worth, from sync_expected_scores.py.
+// Only rendered for completed games that have been re-graded.
+function ExpectedRow({ row }) {
+  if (row.away_expected_score == null || row.home_expected_score == null) return null;
+  return (
+    <div className="game-card-footer-row game-card-expected-row">
+      <span className="stat-label-meta">Expected</span>
+      <span className="game-card-picks-value">
+        {row.away_team} {fmtInt(row.away_expected_score)}
+        <span className="stat-sep">·</span>
+        {row.home_team} {fmtInt(row.home_expected_score)}
+        {row.expected_garbage_time && (
+          <span className="expected-flag" title="Garbage time excluded">GT</span>
+        )}
+        {row.expected_overtime && (
+          <span className="expected-flag" title="Overtime excluded">OT</span>
+        )}
+        <span className="market-hover expected-hover">
+          <span className="market-hover-icon">ⓘ</span>
+          <div className="market-tooltip expected-tooltip">
+            <div className="market-tooltip-header">Expected score</div>
+            <p>
+              What the score should have been based on how both teams actually
+              played: efficiency, how often they reached scoring range, and field
+              position. Turnover luck is evened out.
+            </p>
+            {row.expected_garbage_time && (
+              <p>
+                <strong>GT:</strong> this game reached garbage time, and those plays
+                aren't counted. The winner's expected score will look lower than the
+                final partly for that reason.
+              </p>
+            )}
+            {row.expected_overtime && (
+              <p><strong>OT:</strong> overtime isn't counted. This covers regulation only.</p>
+            )}
+            <p>Single games are noisy. Treat margin gaps under ~8 points as noise.</p>
+          </div>
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function GameCard({ row, totalTeams, onSelectTeam }) {
   return (
     <div className="game-card">
@@ -177,45 +242,30 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
         </div>
       </div>
 
+      {((row.show_spread_bet || row.show_total_bet) || row.home_expected_score != null) && (
+      <div className="game-card-footer">
       {(row.show_spread_bet || row.show_total_bet) && (
-        <div className="game-card-picks-row">
+        <div className="game-card-footer-row game-card-picks-row">
           <span className="stat-label-meta">Model Picks</span>
           <span className="game-card-picks-value">
             {row.show_spread_bet && row.bet_team && (
               <>
                 <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
-                {row.ats_result && (
-                  <span className={
-                    row.ats_result === "COVER" ? "ats-badge ats-cover" :
-                    row.ats_result === "NO_COVER" ? "ats-badge ats-miss" :
-                    "ats-badge ats-push"
-                  }>
-                    {row.ats_result === "COVER" ? "✓" : row.ats_result === "NO_COVER" ? "✗" : "Push"}
-                  </span>
-                )}
+                <ResultBadge result={row.ats_result} />
               </>
             )}
             {row.show_spread_bet && row.show_total_bet && " / "}
             {row.show_total_bet && row.total_pick && (
               <>
                 <strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
-                {row.total_result && (
-                  <span className={
-                    row.total_result === "COVER" ? "ats-badge ats-cover" :
-                    row.total_result === "NO_COVER" ? "ats-badge ats-miss" :
-                    "ats-badge ats-push"
-                  }>
-                    {row.total_result === "COVER" ? "✓" : row.total_result === "NO_COVER" ? "✗" : "Push"}
-                  </span>
-                )}
+                <ResultBadge result={row.total_result} />
               </>
             )}
           </span>
         </div>
       )}
-
-      {!row.completed && row.key_number_tier === "KEY++" && row.key_number_margin != null && (
-        <div className="key-badge">Key Number Crossed: {row.key_number_margin}</div>
+      <ExpectedRow row={row} />
+      </div>
       )}
     </div>
   );
