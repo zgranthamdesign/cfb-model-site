@@ -221,6 +221,15 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
     row.model_total,
   ].some(v => v != null);
 
+  // "No Bet": the model and market were both available to compare, but they
+  // agree too closely on the spread and the total for either to be a pick.
+  // Distinct from a game with no lines at all, which shows no picks row.
+  const hasPick = row.show_spread_bet || row.show_total_bet;
+  const picksEvaluated =
+    (row.market_spread != null && row.model_spread != null) ||
+    (row.market_total != null && row.model_total != null);
+  const noBet = picksEvaluated && !hasPick;
+
   return (
     <div className="game-card">
       <div className="game-card-header-row">
@@ -264,24 +273,27 @@ function GameCard({ row, totalTeams, onSelectTeam }) {
       </div>
       )}
 
-      {((row.show_spread_bet || row.show_total_bet) || row.home_expected_score != null) && (
+      {(hasPick || noBet || row.home_expected_score != null) && (
       <div className="game-card-footer">
-      {(row.show_spread_bet || row.show_total_bet) && (
+      {(hasPick || noBet) && (
         <div className="game-card-footer-row game-card-picks-row">
           <span className="stat-label-meta">Model Picks</span>
           <span className="game-card-picks-value">
+            {noBet && <span className="picks-no-bet">No Bet</span>}
+            {/* Each pick is kept on one line; on narrow screens the row wraps
+                between picks rather than splitting "Under" from "55". */}
             {row.show_spread_bet && row.bet_team && (
-              <>
+              <span className="pick-item">
                 <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
                 <ResultBadge result={row.ats_result} />
-              </>
+              </span>
             )}
-            {row.show_spread_bet && row.show_total_bet && " / "}
+            {row.show_spread_bet && row.show_total_bet && <span className="pick-sep">/</span>}
             {row.show_total_bet && row.total_pick && (
-              <>
+              <span className="pick-item">
                 <strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
                 <ResultBadge result={row.total_result} />
-              </>
+              </span>
             )}
           </span>
         </div>
