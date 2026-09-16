@@ -213,6 +213,9 @@ select:focus {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
+  /* Size each card to its own content. The default (stretch) made a short
+     FCS card grow to match a full FBS card beside it, leaving an empty box. */
+  align-items: start;
 }
 
 @media (max-width: 900px) {
