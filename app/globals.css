@@ -1458,6 +1458,56 @@ th {
   margin: -8px 0 18px;
 }
 
+/* (i) explainers in the points table: tap to open the text under the row. */
+.bd-label-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.bd-info-toggle {
+  border: 0;
+  background: none;
+  padding: 2px;
+  margin: -2px 0;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.bd-info-toggle:hover,
+.bd-info-toggle.is-open {
+  color: var(--text);
+}
+
+.bd-info-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.bd-row > .bd-info-text {
+  grid-column: 1 / -1;
+  text-align: left;
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+.bd-info-text p {
+  margin: 0;
+}
+
+.bd-info-text p + p {
+  margin-top: 6px;
+}
+
 .bd-note {
   font-size: 11.5px;
   line-height: 1.45;
@@ -1612,8 +1662,10 @@ th {
     column-gap: 4px;
   }
 
+  /* Only two narrow number columns ("+13.4"), so the label and its hint
+     get the rest of the row. */
   .bd-table-points .bd-row {
-    grid-template-columns: minmax(0, 1.7fr) repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) 64px 64px;
   }
 
   .bd-label {
@@ -1624,5 +1676,20 @@ th {
   .bd-hint {
     font-size: 9.5px;
     white-space: normal;
+  }
+}
+
+/* Short team names ("S Miss") replace long ones on phones only. */
+.team-name-short {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .team-name-full {
+    display: none;
+  }
+
+  .team-name-short {
+    display: inline;
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 
 function fmt(n, digits = 1) {
   if (n === null || n === undefined || isNaN(n)) return "—";
@@ -59,6 +59,23 @@ function fmtDateHeading(iso) {
   return `${weekday}, ${month} ${day}${suffix}`;
 }
 
+// School name -> short name ("Southern Miss" -> "S Miss"), from the teams
+// table. Provided by Home once /api/lines answers.
+const ShortNamesContext = createContext({});
+
+// A team name that swaps to its short form on phones, where long names get
+// cut off. Falls back to the full name when no short name is set.
+function TeamName({ name }) {
+  const short = useContext(ShortNamesContext)[name];
+  if (!short || short === name) return name;
+  return (
+    <>
+      <span className="team-name-full">{name}</span>
+      <span className="team-name-short">{short}</span>
+    </>
+  );
+}
+
 function fmtSyncTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -107,7 +124,7 @@ function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, r
           ) : null}
         </span>
         <span className="game-card-team-name-block">
-          <span className="game-card-team-name">{name}</span>
+          <span className="game-card-team-name"><TeamName name={name} /></span>
           {record && (
             <span className="game-card-team-record">{record.wins}-{record.losses}</span>
           )}
@@ -186,9 +203,9 @@ function ExpectedRow({ row, onOpen }) {
     >
       <span className="stat-label-meta">Expected</span>
       <span className="game-card-picks-value">
-        {row.away_team} {fmtInt(row.away_expected_score)}
+        <TeamName name={row.away_team} /> {fmtInt(row.away_expected_score)}
         <span className="stat-sep">·</span>
-        {row.home_team} {fmtInt(row.home_expected_score)}
+        <TeamName name={row.home_team} /> {fmtInt(row.home_expected_score)}
         {row.expected_garbage_time && (
           <span className="expected-flag" title="Garbage time excluded">GT</span>
         )}
@@ -276,7 +293,7 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
         <div className="line-cell line-row-label line-row-label-stack">
           <span>Spread</span>
           {row.market_favorite_team && (
-            <span className="line-row-team">{row.market_favorite_team}</span>
+            <span className="line-row-team"><TeamName name={row.market_favorite_team} /></span>
           )}
         </div>
         <div className="line-cell line-col-value">{fmtHalf(row.market_spread_open_favorite)}</div>
@@ -310,7 +327,7 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
                 between picks rather than splitting "Under" from "55". */}
             {row.show_spread_bet && row.bet_team && (
               <span className="pick-item">
-                <strong>{row.bet_team}</strong> {fmtHalfSigned(row.bet_spread)}
+                <strong><TeamName name={row.bet_team} /></strong> {fmtHalfSigned(row.bet_spread)}
                 <ResultBadge result={row.ats_result} />
               </span>
             )}
@@ -437,10 +454,48 @@ function garbageTimeNote(start) {
 
 // How many points each piece added or took away from an average offense
 // over the same number of drives. These sum to the expected score.
+//
+// `info` is the explainer behind the row's (i) button: what the stat is, how
+// it turns into points, and how to read it. Takes the FBS averages so the
+// numbers quoted match the model the page was built from.
+const pctText = n => `${Math.round(n * 100)}%`;
+
 const BREAKDOWN_POINTS = [
-  { label: "Scoring Chances", value: t => t.breakdown.contributions.opps_per_drive },
-  { label: "Points Per Chance", value: t => t.breakdown.contributions.pts_per_opp },
-  { label: "Success Rate", value: t => t.breakdown.contributions.sr },
+  {
+    label: "Average Offense",
+    value: t => t.breakdown.baseline,
+    neutral: true,
+    info: l => [
+      `The starting point for every team. An average FBS offense scores about ${one(l.pts_per_drive)} points per drive, so this is ${one(l.pts_per_drive)} × the number of drives the team had before garbage time.`,
+      "Every line below adds or subtracts points based on how the team compared with that average offense over the same drives. Drive counts are usually close in a game, so both teams tend to start near the same number.",
+    ],
+  },
+  {
+    label: "Scoring Chances",
+    value: t => t.breakdown.contributions.opps_per_drive,
+    info: l => [
+      `The share of drives that reached the opponent's 40-yard line. An average offense gets there on about ${pctText(l.opps_per_drive)} of its drives.`,
+      "This is usually the biggest line. It measures moving the ball into range, which is the most repeatable part of scoring. It doesn't care what happened after crossing the 40; that's Points Per Chance.",
+    ],
+  },
+  {
+    label: "Points Per Chance",
+    // finish_per_drive since the model change; older rows only have pts_per_opp.
+    value: t => t.breakdown.contributions.finish_per_drive ?? t.breakdown.contributions.pts_per_opp,
+    info: l => [
+      `Average points on drives that reached the opponent's 40. The FBS average is about ${one(l.pts_per_opp)}, a mix of touchdowns, field goals and trips that came away empty.`,
+      "Finishing is mostly luck from one game to the next. A missed field goal, a drop in the end zone or a fourth-down stop swings it, and how well a team finished one game barely predicts how it finishes the next. So the model pulls it hard toward average: a game with six chances keeps about a tenth of its own rate, and the rest is treated as average finishing.",
+      "It only counts on the chances a team actually had. A team that scored 8 points on its only chance gets credit for that one chance, not for every drive, which keeps this line small unless a team finished unusually well or poorly on a lot of chances.",
+    ],
+  },
+  {
+    label: "Success Rate",
+    value: t => t.breakdown.contributions.sr,
+    info: l => [
+      `The share of plays that kept the offense on schedule: at least half the yards needed on 1st down, 70% on 2nd, and all of them on 3rd or 4th. Touchdowns always count. The FBS average is about ${pctText(l.sr)}.`,
+      "It rewards steady, play-after-play offense rather than a few big gains. Most of what it captures already shows up in Scoring Chances, so its point value is usually small.",
+    ],
+  },
   { label: "Field Position", value: t => t.breakdown.contributions.start_to_goal },
   { label: "Yards Per Carry", value: t => t.breakdown.contributions.ypc },
   { label: "Yards Per Attempt", value: t => t.breakdown.contributions.ypa },
@@ -450,6 +505,11 @@ const BREAKDOWN_POINTS = [
     // reader, so they are shown as a single net line.
     label: "Turnovers & Luck",
     value: t => t.breakdown.contributions.tov_per_drive + t.breakdown.turnover_luck,
+    info: () => [
+      "Two things in one line. Turnovers cost points, since each one ends a drive. But whether a loose ball bounces your way is mostly luck, so the model evens that part out.",
+      "Each team gets an expected number of turnovers from how often it put the ball at risk: about half a turnover per fumble, since the defense recovers roughly 52% of them, and about 0.024 per pass attempt, the FBS interception rate. Both rates come from every FBS game from 2022 to 2025.",
+      "A team that turned it over more than expected gets points back here. A team that got away with fumbles or risky throws gives some back. Interceptions are partly skill, so a team whose quarterback forces throws may get back a little more than it deserves.",
+    ],
   },
 ];
 
@@ -470,6 +530,8 @@ function hasGarbageTimeStats(details) {
 function GameBreakdownPanel({ row, onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  // Label of the row whose explainer is open; one at a time.
+  const [openInfo, setOpenInfo] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -510,7 +572,7 @@ function GameBreakdownPanel({ row, onClose }) {
                 <div className="bd-summary-team" key={side}>
                   <div className="bd-summary-name">
                     {logo && <img src={logo} alt="" className="team-logo bd-logo" />}
-                    <span>{t.team}</span>
+                    <span><TeamName name={t.team} /></span>
                   </div>
                   <div className="bd-summary-scores">
                     <div>
@@ -530,8 +592,8 @@ function GameBreakdownPanel({ row, onClose }) {
             <div className="bd-table bd-table-stats">
               <div className="bd-row bd-head">
                 <span />
-                <span>{row.away_team}</span>
-                <span>{row.home_team}</span>
+                <span><TeamName name={row.away_team} /></span>
+                <span><TeamName name={row.home_team} /></span>
                 <span>Avg</span>
               </div>
               {BREAKDOWN_STATS.map(s => (
@@ -557,24 +619,43 @@ function GameBreakdownPanel({ row, onClose }) {
             <div className="bd-table bd-table-points">
               <div className="bd-row bd-head">
                 <span />
-                <span>{row.away_team}</span>
-                <span>{row.home_team}</span>
+                <span><TeamName name={row.away_team} /></span>
+                <span><TeamName name={row.home_team} /></span>
               </div>
-              <div className="bd-row">
-                <span className="bd-label">
-                  Average Offense
-                  <span className="bd-hint">{one(league.pts_per_drive)} pts per drive × drives</span>
-                </span>
-                <span className="bd-pts">{one(away.breakdown.baseline)}</span>
-                <span className="bd-pts">{one(home.breakdown.baseline)}</span>
-              </div>
-              {BREAKDOWN_POINTS.map(p => (
-                <div className="bd-row" key={p.label}>
-                  <span className="bd-label">{p.label}</span>
-                  <span className={pointsClass(p.value(away))}>{fmtPoints(p.value(away))}</span>
-                  <span className={pointsClass(p.value(home))}>{fmtPoints(p.value(home))}</span>
-                </div>
-              ))}
+              {BREAKDOWN_POINTS.map(p => {
+                const open = openInfo === p.label;
+                return (
+                  <div className="bd-row" key={p.label}>
+                    <span className="bd-label">
+                      <span className="bd-label-line">
+                        {p.label}
+                        {p.info && (
+                          <button
+                            type="button"
+                            className={`bd-info-toggle${open ? " is-open" : ""}`}
+                            aria-expanded={open}
+                            aria-label={`What is ${p.label}?`}
+                            onClick={() => setOpenInfo(open ? null : p.label)}
+                          >
+                            ⓘ
+                          </button>
+                        )}
+                      </span>
+                    </span>
+                    <span className={p.neutral ? "bd-pts" : pointsClass(p.value(away))}>
+                      {p.neutral ? one(p.value(away)) : fmtPoints(p.value(away))}
+                    </span>
+                    <span className={p.neutral ? "bd-pts" : pointsClass(p.value(home))}>
+                      {p.neutral ? one(p.value(home)) : fmtPoints(p.value(home))}
+                    </span>
+                    {open && (
+                      <div className="bd-info-text">
+                        {p.info(league).map((para, i) => <p key={i}>{para}</p>)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               <div className="bd-row bd-total">
                 <span className="bd-label">Expected Score</span>
                 <span>{one(away.expected)}</span>
@@ -763,7 +844,7 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
                   <span className="schedule-opponent">
                     {g.home_away === "away" ? "@ " : "vs "}
                     {g.opponent_logo && <img src={g.opponent_logo} alt="" className="team-logo" />}
-                    {g.opponent}
+                    <TeamName name={g.opponent} />
                   </span>
                   <span className="schedule-result">
                     {g.completed ? (
@@ -828,6 +909,7 @@ export default function Home() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [recordData, setRecordData] = useState(null);
   const [breakdownRow, setBreakdownRow] = useState(null);
+  const [shortNames, setShortNames] = useState({});
 
   function openTeamStats(name) {
     setStatsTeam(name);
@@ -858,6 +940,7 @@ export default function Home() {
       .then(r => r.json())
       .then(d => {
         setLinesData(d.rows || []);
+        if (d.shortNames) setShortNames(d.shortNames);
         setTotalTeams(d.totalTeams || null);
         setLastSynced(d.lastSynced || null);
       })
@@ -917,6 +1000,7 @@ export default function Home() {
   }, [filteredLines]);
 
   return (
+    <ShortNamesContext.Provider value={shortNames}>
     <div className="container">
       <header className="page-header">
         <div>
@@ -1105,5 +1189,6 @@ export default function Home() {
         <GameBreakdownPanel row={breakdownRow} onClose={() => setBreakdownRow(null)} />
       )}
     </div>
+    </ShortNamesContext.Provider>
   );
 }

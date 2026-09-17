@@ -263,5 +263,14 @@ export async function GET(request) {
     };
   });
 
-  return NextResponse.json({ rows, lastSynced, totalTeams: allRatings?.length || null });
+  // Short display names for long school names, keyed by full name. Shown on
+  // phones only. Every team, not just this week's, since the team panel's
+  // schedule lists other opponents. Selected with "*" so the page still works
+  // before the short_name column exists.
+  const { data: allTeams } = await supabase.from("teams").select("*");
+  const shortNames = Object.fromEntries(
+    (allTeams || []).filter(t => t.short_name).map(t => [t.school, t.short_name])
+  );
+
+  return NextResponse.json({ rows, lastSynced, totalTeams: allRatings?.length || null, shortNames });
 }
