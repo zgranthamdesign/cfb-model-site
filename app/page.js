@@ -386,25 +386,25 @@ const one = n => (n == null ? "—" : n.toFixed(1));
 // serves the competitive-time line and the full-game line (garbage time in).
 const BREAKDOWN_STATS = [
   { label: "Drives", team: (s, drives) => drives, avg: () => "—" },
-  { label: "Success rate", team: s => pct(s.sr), avg: l => pct(l.sr) },
-  { label: "Yards per carry", team: s => one(s.ypc), avg: l => one(l.ypc) },
-  { label: "Yards per attempt", team: s => one(s.ypa), avg: l => one(l.ypa) },
+  { label: "Success Rate", team: s => pct(s.sr), avg: l => pct(l.sr) },
+  { label: "Yards Per Carry", team: s => one(s.ypc), avg: l => one(l.ypc) },
+  { label: "Yards Per Attempt", team: s => one(s.ypa), avg: l => one(l.ypa) },
   {
-    label: "Scoring chances",
+    label: "Scoring Chances",
     hint: "Drives reaching the opponent's 40",
     team: (s, drives) => `${s.opportunities} of ${drives}`,
     // Just the rate: "52% of drives" overflowed the column on phones, and
     // the hint above already says what is being counted.
     avg: l => pct(l.opps_per_drive),
   },
-  { label: "Points per chance", team: s => one(s.pts_per_opp), avg: l => one(l.pts_per_opp) },
-  { label: "Avg. drive start", team: s => fieldPosition(s.start_to_goal), avg: l => fieldPosition(l.start_to_goal) },
-  { label: "Plays per drive", team: s => one(s.plays_per_drive), avg: l => one(l.plays_per_drive) },
+  { label: "Points Per Chance", team: s => one(s.pts_per_opp), avg: l => one(l.pts_per_opp) },
+  { label: "Avg. Drive Start", team: s => fieldPosition(s.start_to_goal), avg: l => fieldPosition(l.start_to_goal) },
+  { label: "Plays Per Drive", team: s => one(s.plays_per_drive), avg: l => one(l.plays_per_drive) },
   {
-    label: "Turnovers",
+    label: "Turnovers (Exp.)",
     team: s => (s.expected_turnovers == null
       ? `${s.turnovers}`
-      : `${s.turnovers} (${one(s.expected_turnovers)} exp.)`),
+      : `${s.turnovers} (${one(s.expected_turnovers)})`),
     // Compared on the count alone; expected turnovers is a model figure.
     compare: s => `${s.turnovers}`,
     avg: () => "—",
@@ -437,17 +437,17 @@ function garbageTimeNote(start) {
 // How many points each piece added or took away from an average offense
 // over the same number of drives. These sum to the expected score.
 const BREAKDOWN_POINTS = [
-  { label: "Scoring chances", value: t => t.breakdown.contributions.opps_per_drive },
-  { label: "Points per chance", value: t => t.breakdown.contributions.pts_per_opp },
-  { label: "Success rate", value: t => t.breakdown.contributions.sr },
-  { label: "Field position", value: t => t.breakdown.contributions.start_to_goal },
-  { label: "Yards per carry", value: t => t.breakdown.contributions.ypc },
-  { label: "Yards per attempt", value: t => t.breakdown.contributions.ypa },
-  { label: "Plays per drive", value: t => t.breakdown.contributions.plays_per_drive },
+  { label: "Scoring Chances", value: t => t.breakdown.contributions.opps_per_drive },
+  { label: "Points Per Chance", value: t => t.breakdown.contributions.pts_per_opp },
+  { label: "Success Rate", value: t => t.breakdown.contributions.sr },
+  { label: "Field Position", value: t => t.breakdown.contributions.start_to_goal },
+  { label: "Yards Per Carry", value: t => t.breakdown.contributions.ypc },
+  { label: "Yards Per Attempt", value: t => t.breakdown.contributions.ypa },
+  { label: "Plays Per Drive", value: t => t.breakdown.contributions.plays_per_drive },
   {
     // The turnover stat and the turnover-luck correction are one idea to a
     // reader, so they are shown as a single net line.
-    label: "Turnovers & luck",
+    label: "Turnovers & Luck",
     value: t => t.breakdown.contributions.tov_per_drive + t.breakdown.turnover_luck,
   },
 ];
@@ -537,7 +537,7 @@ function GameBreakdownPanel({ row, onClose }) {
                 <span />
                 <span>{row.away_team}</span>
                 <span>{row.home_team}</span>
-                <span>FBS avg</span>
+                <span>Avg</span>
               </div>
               {BREAKDOWN_STATS.map(s => (
                 <div className="bd-row" key={s.label}>
@@ -567,7 +567,7 @@ function GameBreakdownPanel({ row, onClose }) {
               </div>
               <div className="bd-row">
                 <span className="bd-label">
-                  Average offense
+                  Average Offense
                   <span className="bd-hint">{one(league.pts_per_drive)} pts per drive × drives</span>
                 </span>
                 <span className="bd-pts">{one(away.breakdown.baseline)}</span>
@@ -581,7 +581,7 @@ function GameBreakdownPanel({ row, onClose }) {
                 </div>
               ))}
               <div className="bd-row bd-total">
-                <span className="bd-label">Expected score</span>
+                <span className="bd-label">Expected Score</span>
                 <span>{one(away.expected)}</span>
                 <span>{one(home.expected)}</span>
               </div>
