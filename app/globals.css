@@ -1302,6 +1302,7 @@ th {
 .bd-summary-team {
   border: 1px solid #e0e2dc;
   padding: 10px 12px;
+  min-width: 0;
 }
 
 .bd-summary-name {
@@ -1334,6 +1335,7 @@ th {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  white-space: nowrap;
 }
 
 .bd-summary-value {

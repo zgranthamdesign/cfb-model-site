@@ -391,10 +391,11 @@ const BREAKDOWN_STATS = [
   { label: "Yards Per Attempt", team: s => one(s.ypa), avg: l => one(l.ypa) },
   {
     label: "Scoring Chances",
-    hint: "Drives reaching the opponent's 40",
+    hint: "Reached opp. 40",
     team: (s, drives) => `${s.opportunities} of ${drives}`,
     // Just the rate: "52% of drives" overflowed the column on phones, and
-    // the hint above already says what is being counted.
+    // the hint above already says what is being counted. The hint itself is
+    // kept short enough to stay on one line in the phone label column.
     avg: l => pct(l.opps_per_drive),
   },
   { label: "Points Per Chance", team: s => one(s.pts_per_opp), avg: l => one(l.pts_per_opp) },
@@ -493,7 +494,7 @@ function GameBreakdownPanel({ row, onClose }) {
       <div className="stats-panel breakdown-panel" onClick={e => e.stopPropagation()}>
         <div className="stats-panel-header">
           <div className="breakdown-title">
-            <h2>Expected score</h2>
+            <h2>Expected Score</h2>
             <div className="breakdown-subtitle">{row.away_team} @ {row.home_team}</div>
           </div>
           <button className="stats-panel-close" onClick={onClose} aria-label="Close">×</button>
@@ -516,12 +517,6 @@ function GameBreakdownPanel({ row, onClose }) {
                       <span className="stat-label-meta">Final</span>
                       <span className="bd-summary-value">{fmtInt(final)}</span>
                     </div>
-                    {(data.garbage_time || data.overtime) && (
-                      <div>
-                        <span className="stat-label-meta">{data.overtime ? "Regulation" : "Before GT"}</span>
-                        <span className="bd-summary-value">{fmtInt(t.competitive_points)}</span>
-                      </div>
-                    )}
                     <div>
                       <span className="stat-label-meta">Expected</span>
                       <span className="bd-summary-value bd-expected">{fmtInt(t.expected)}</span>
