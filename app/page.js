@@ -381,29 +381,58 @@ function fieldPosition(yardsToGoal) {
 const pct = n => (n == null ? "—" : `${Math.round(n * 100)}%`);
 const one = n => (n == null ? "—" : n.toFixed(1));
 
-// Stats as played, alongside the FBS average for the same measure.
+// Stats as played, alongside the FBS average for the same measure. Each
+// `team` formatter takes a stat block and drive count, so the same formatting
+// serves the competitive-time line and the full-game line (garbage time in).
 const BREAKDOWN_STATS = [
-  { label: "Drives", team: t => t.drives, avg: () => "—" },
-  { label: "Success rate", team: t => pct(t.stats.sr), avg: l => pct(l.sr) },
-  { label: "Yards per carry", team: t => one(t.stats.ypc), avg: l => one(l.ypc) },
-  { label: "Yards per attempt", team: t => one(t.stats.ypa), avg: l => one(l.ypa) },
+  { label: "Drives", team: (s, drives) => drives, avg: () => "—" },
+  { label: "Success rate", team: s => pct(s.sr), avg: l => pct(l.sr) },
+  { label: "Yards per carry", team: s => one(s.ypc), avg: l => one(l.ypc) },
+  { label: "Yards per attempt", team: s => one(s.ypa), avg: l => one(l.ypa) },
   {
     label: "Scoring chances",
     hint: "Drives reaching the opponent's 40",
-    team: t => `${t.stats.opportunities} of ${t.drives}`,
+    team: (s, drives) => `${s.opportunities} of ${drives}`,
     // Just the rate: "52% of drives" overflowed the column on phones, and
     // the hint above already says what is being counted.
     avg: l => pct(l.opps_per_drive),
   },
-  { label: "Points per chance", team: t => one(t.stats.pts_per_opp), avg: l => one(l.pts_per_opp) },
-  { label: "Avg. drive start", team: t => fieldPosition(t.stats.start_to_goal), avg: l => fieldPosition(l.start_to_goal) },
-  { label: "Plays per drive", team: t => one(t.stats.plays_per_drive), avg: l => one(l.plays_per_drive) },
+  { label: "Points per chance", team: s => one(s.pts_per_opp), avg: l => one(l.pts_per_opp) },
+  { label: "Avg. drive start", team: s => fieldPosition(s.start_to_goal), avg: l => fieldPosition(l.start_to_goal) },
+  { label: "Plays per drive", team: s => one(s.plays_per_drive), avg: l => one(l.plays_per_drive) },
   {
     label: "Turnovers",
-    team: t => `${t.stats.turnovers} (${one(t.stats.expected_turnovers)} exp.)`,
+    team: s => (s.expected_turnovers == null
+      ? `${s.turnovers}`
+      : `${s.turnovers} (${one(s.expected_turnovers)} exp.)`),
+    // Compared on the count alone; expected turnovers is a model figure.
+    compare: s => `${s.turnovers}`,
     avg: () => "—",
   },
 ];
+
+// A team's stat cell: the competitive-time value the expected score uses, and
+// underneath it, marked, the full-game value when garbage time changed it.
+function StatCell({ stat, team }) {
+  const value = stat.team(team.stats, team.drives);
+  const full = team.full_game;
+  const compare = stat.compare || stat.team;
+  const fullValue = full ? compare(full, full.drives) : null;
+  const differs = fullValue != null && fullValue !== compare(team.stats, team.drives);
+  return (
+    <span className="bd-stat">
+      {value}
+      {differs && <span className="bd-gt-value">{fullValue}*</span>}
+    </span>
+  );
+}
+
+function garbageTimeNote(start) {
+  if (!start) return null;
+  const quarter = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th" }[start.period] || `Q${start.period}`;
+  return `Garbage time began with ${start.clock} left in the ${quarter} quarter, ` +
+    `${start.leader} leading ${start.leader_score}–${start.trailer_score}.`;
+}
 
 // How many points each piece added or took away from an average offense
 // over the same number of drives. These sum to the expected score.
@@ -426,6 +455,15 @@ const BREAKDOWN_POINTS = [
 function pointsClass(n) {
   if (n == null || Math.abs(n) < 0.5) return "bd-pts";
   return n > 0 ? "bd-pts bd-pos" : "bd-pts bd-neg";
+}
+
+// True when any shown stat changes once garbage time is included, so the
+// footnote only appears when an asterisk does.
+function hasGarbageTimeStats(details) {
+  return [details.away, details.home].some(t => t.full_game && BREAKDOWN_STATS.some(s => {
+    const compare = s.compare || s.team;
+    return compare(t.full_game, t.full_game.drives) !== compare(t.stats, t.drives);
+  }));
 }
 
 function GameBreakdownPanel({ row, onClose }) {
@@ -507,12 +545,18 @@ function GameBreakdownPanel({ row, onClose }) {
                     {s.label}
                     {s.hint && <span className="bd-hint">{s.hint}</span>}
                   </span>
-                  <span>{s.team(away)}</span>
-                  <span>{s.team(home)}</span>
+                  <StatCell stat={s} team={away} />
+                  <StatCell stat={s} team={home} />
                   <span className="bd-avg">{s.avg(league)}</span>
                 </div>
               ))}
             </div>
+            {hasGarbageTimeStats(d) && (
+              <p className="bd-footnote">
+                * Full game, including garbage time. Shown for reference; the expected
+                score doesn't use it. {garbageTimeNote(d.garbage_time_start)}
+              </p>
+            )}
 
             <div className="bd-section-heading stat-label-meta">How the expected score adds up</div>
             <div className="bd-table bd-table-points">

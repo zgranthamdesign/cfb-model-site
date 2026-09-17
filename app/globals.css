@@ -1437,6 +1437,25 @@ th {
   color: var(--text);
 }
 
+/* Full-game value under a competitive-time stat, when garbage time changed it. */
+.bd-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.bd-gt-value {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.bd-footnote {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-faint);
+  margin: -8px 0 18px;
+}
+
 .bd-note {
   font-size: 11.5px;
   line-height: 1.45;
