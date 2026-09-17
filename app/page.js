@@ -813,14 +813,16 @@ function RecordCard({ label, record }) {
 
 export default function Home() {
   const [tab, setTab] = useState("lines");
-  const [week, setWeek] = useState(1);
+  // Null until /api/current-week answers, so the page never flashes week 1.
+  const [week, setWeek] = useState(null);
   const [conference, setConference] = useState("All");
   const [linesData, setLinesData] = useState([]);
   const [totalTeams, setTotalTeams] = useState(null);
   const [lastSynced, setLastSynced] = useState(null);
   const [search, setSearch] = useState("");
   const [ratingsData, setRatingsData] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Starts true: the first load waits on the current-week lookup.
+  const [loading, setLoading] = useState(true);
   const [statsTeam, setStatsTeam] = useState(null);
   const [statsData, setStatsData] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -843,7 +845,14 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (tab !== "lines") return;
+    fetch(`/api/current-week?season=2026`)
+      .then(r => r.json())
+      .then(d => setWeek(d.week || 1))
+      .catch(() => setWeek(1));
+  }, []);
+
+  useEffect(() => {
+    if (tab !== "lines" || week == null) return;
     setLoading(true);
     fetch(`/api/lines?season=2026&week=${week}`)
       .then(r => r.json())
@@ -856,7 +865,7 @@ export default function Home() {
   }, [tab, week]);
 
   useEffect(() => {
-    if (tab !== "ratings") return;
+    if (tab !== "ratings" || week == null) return;
     setLoading(true);
     fetch(`/api/ratings?season=2026&week=${week}`)
       .then(r => r.json())
@@ -962,7 +971,7 @@ export default function Home() {
 
       {tab !== "record" && (
         <div className="filters">
-          <select value={week} onChange={e => setWeek(Number(e.target.value))}>
+          <select value={week ?? ""} onChange={e => setWeek(Number(e.target.value))}>
             {Array.from({ length: 15 }, (_, i) => i + 1).map(w => (
               <option key={w} value={w}>Week {w}</option>
             ))}
