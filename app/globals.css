@@ -270,6 +270,9 @@ select:focus {
   font-size: 11px;
   font-weight: 500;
   color: #8a8c82;
+  /* The time (and LIVE tag) never wrap; a long venue name gives way instead. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .stat-label-meta {
@@ -389,11 +392,12 @@ select:focus {
 }
 
 .score-final {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Geist', sans-serif;
   font-weight: 600;
   font-size: 24px;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
   min-width: 30px;
   text-align: right;
@@ -542,7 +546,7 @@ select:focus {
 }
 
 .game-card-team-record {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Geist', sans-serif;
   font-size: 11px;
   color: #8a8c82;
   font-weight: 500;
@@ -672,15 +676,16 @@ select:focus {
 }
 
 .game-card-footer-row .stat-label-meta {
-  /* Never break "MODEL PICKS" across two lines; the value side gives way. */
+  /* Never break "MODEL PICKS" across two lines; the value side gives way.
+     Same treatment as the SPREAD / TOTAL row labels in the lines grid. */
   white-space: nowrap;
   flex-shrink: 0;
   margin-right: 12px;
-  color: #17462f;
-  font-weight: 700;
-  font-size: 10px;
+  color: #676960;
+  font-weight: 650;
+  font-size: 9px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .game-card-picks-value {
@@ -707,6 +712,17 @@ select:focus {
 
 .game-card-picks-value .stat-sep {
   font-family: inherit;
+}
+
+/* Numbers in the footer rows are Geist sans, like the lines grid, but at
+   the row's own size so they match the team names beside them. Words and
+   team names stay mono. */
+.num {
+  font-family: 'Geist', sans-serif;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .pick-item {
@@ -1631,9 +1647,10 @@ th {
   }
 
   .game-card-footer-row .stat-label-meta {
-    font-size: 9px;
+    font-size: 8px;
     margin-right: 8px;
   }
+
 
   .game-card-picks-value {
     font-size: 9px;
@@ -1679,17 +1696,20 @@ th {
   }
 }
 
-/* Short team names ("S Miss") replace long ones on phones only. */
-.team-name-short {
+/* Short team names ("S Miss") and labels replace long ones on phones only. */
+.team-name-short,
+.label-short {
   display: none;
 }
 
 @media (max-width: 600px) {
-  .team-name-full {
+  .team-name-full,
+  .label-full {
     display: none;
   }
 
-  .team-name-short {
+  .team-name-short,
+  .label-short {
     display: inline;
   }
 }
@@ -1731,8 +1751,30 @@ th {
   }
 }
 
-.live-clock {
+.live-pill {
+  margin-right: 8px;
+}
+
+/* Actual score at the half, beside the halftime expected score. */
+.halftime-actual {
+  color: var(--text-faint);
+}
+
+/* A team and its number never split across lines. */
+.team-score {
+  white-space: nowrap;
+}
+
+/* Expected rows: a wider gap between the two teams, since there's no dot
+   separating them. Type size is the row's, same as MODEL PICKS. */
+.game-card-expected-row .team-score + .team-score {
   margin-left: 8px;
-  color: #d92d20;
-  font-weight: 600;
+}
+
+/* Hover tooltips don't work on touch screens; the row's › opens the full
+   explanation instead, and dropping the icon keeps the row on one line. */
+@media (max-width: 600px) {
+  .hide-on-phone {
+    display: none;
+  }
 }

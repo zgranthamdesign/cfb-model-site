@@ -59,14 +59,17 @@ function fmtDateHeading(iso) {
   return `${weekday}, ${month} ${day}${suffix}`;
 }
 
-// School name -> short name ("Southern Miss" -> "S Miss"), from the teams
-// table. Provided by Home once /api/lines answers.
-const ShortNamesContext = createContext({});
+// Phone-sized team names from the teams table, provided by Home once
+// /api/lines answers: short names ("Southern Miss" -> "S Miss") and CFBD
+// abbreviations ("Syracuse" -> "SYR").
+const ShortNamesContext = createContext({ short: {}, abbr: {} });
 
-// A team name that swaps to its short form on phones, where long names get
-// cut off. Falls back to the full name when no short name is set.
-function TeamName({ name }) {
-  const short = useContext(ShortNamesContext)[name];
+// A team name that swaps to a shorter form on phones, where long names get
+// cut off. `phone="abbr"` uses the abbreviation for the tightest spots.
+// Falls back to the short name, then the full name.
+function TeamName({ name, phone = "short" }) {
+  const names = useContext(ShortNamesContext);
+  const short = (phone === "abbr" && names.abbr[name]) || names.short[name];
   if (!short || short === name) return name;
   return (
     <>
@@ -183,28 +186,31 @@ function ResultBadge({ result }) {
   );
 }
 
-// "Q3 8:12", "Half", from the live scoreboard fields.
-function liveClock(live) {
-  if (!live) return "";
-  const clock = (live.clock || "").replace(/^0(\d:)/, "$1");
-  if (live.period === 2 && /^0?0:00$/.test(live.clock || "")) return "Half";
-  if (!live.period) return "";
-  const quarter = live.period > 4 ? "OT" : `Q${live.period}`;
-  return clock ? `${quarter} ${clock}` : quarter;
+// A game is shown as LIVE from kickoff until it is marked final, capped at
+// four hours so a game whose final never syncs doesn't stay live forever.
+// Driven by the clock, not by a script run, so it can't go stale.
+const LIVE_WINDOW_MS = 4 * 60 * 60 * 1000;
+
+function isLive(row, now = Date.now()) {
+  if (row.completed || !row.start_date) return false;
+  const kickoff = new Date(row.start_date).getTime();
+  return now >= kickoff && now < kickoff + LIVE_WINDOW_MS;
 }
 
-// LIVE EXP row: the halftime expected score for a game in progress, from
-// sync_live_expected.py. Hidden until the game reaches halftime.
-function LiveExpectedRow({ row, onOpen }) {
-  const live = row.live;
-  if (!live || live.away_expected == null || live.home_expected == null) return null;
+// EXPECTED · HALFTIME row: the first half re-graded, from
+// sync_live_expected.py, next to the score at the half. A frozen snapshot:
+// nothing in it changes after halftime, so it reads the same whenever it's
+// viewed. Replaced by the post-game EXPECTED row once the game is re-graded.
+function HalftimeExpectedRow({ row, onOpen }) {
+  const half = row.halftime;
+  if (!half || half.away_expected == null || half.home_expected == null) return null;
   const open = () => onOpen && onOpen({ ...row, live_breakdown: true });
   return (
     <div
       className="game-card-footer-row game-card-expected-row is-clickable"
       role="button"
       tabIndex={0}
-      aria-label={`See why the halftime expected score is ${row.away_team} ${fmtInt(live.away_expected)}, ${row.home_team} ${fmtInt(live.home_expected)}`}
+      aria-label={`See why the halftime expected score is ${row.away_team} ${fmtInt(half.away_expected)}, ${row.home_team} ${fmtInt(half.home_expected)}. Halftime score ${half.away_score} to ${half.home_score}.`}
       onClick={open}
       onKeyDown={e => {
         if (e.key === "Enter" || e.key === " ") {
@@ -213,19 +219,24 @@ function LiveExpectedRow({ row, onOpen }) {
         }
       }}
     >
-      <span className="stat-label-meta">Live Exp · Half</span>
+      <span className="stat-label-meta">
+        <span className="label-full">Expected Halftime Score</span>
+        <span className="label-short">Exp Half</span>
+      </span>
       <span className="game-card-picks-value">
-        <TeamName name={row.away_team} /> {fmtInt(live.away_expected)}
-        <span className="stat-sep">·</span>
-        <TeamName name={row.home_team} /> {fmtInt(live.home_expected)}
-        <span className="market-hover expected-hover">
+        <span className="team-score"><TeamName name={row.away_team} phone="abbr" /> <span className="num">{fmtInt(half.away_expected)}</span></span>
+        <span className="team-score"><TeamName name={row.home_team} phone="abbr" /> <span className="num">{fmtInt(half.home_expected)}</span></span>
+        {half.away_score != null && half.home_score != null && (
+          <span className="halftime-actual num">({half.away_score}–{half.home_score})</span>
+        )}
+        <span className="market-hover expected-hover hide-on-phone">
           <span className="market-hover-icon">ⓘ</span>
           <div className="market-tooltip expected-tooltip">
-            <div className="market-tooltip-header">Live expected score</div>
+            <div className="market-tooltip-header">Halftime expected score</div>
             <p>
-              What the first half was worth based on how both teams played,
-              the same way the post-game expected score is built. Updated once,
-              at halftime.
+              What the first half was worth based on how both teams played, built
+              the same way as the post-game expected score. The score in
+              parentheses is the actual score at the half.
             </p>
             <p>
               A first half is a small sample, roughly five drives each. Treat
@@ -259,9 +270,8 @@ function ExpectedRow({ row, onOpen }) {
     >
       <span className="stat-label-meta">Expected</span>
       <span className="game-card-picks-value">
-        <TeamName name={row.away_team} /> {fmtInt(row.away_expected_score)}
-        <span className="stat-sep">·</span>
-        <TeamName name={row.home_team} /> {fmtInt(row.home_expected_score)}
+        <span className="team-score"><TeamName name={row.away_team} phone="abbr" /> <span className="num">{fmtInt(row.away_expected_score)}</span></span>
+        <span className="team-score"><TeamName name={row.home_team} phone="abbr" /> <span className="num">{fmtInt(row.home_expected_score)}</span></span>
         {row.expected_garbage_time && (
           <span className="expected-flag" title="Garbage time excluded">GT</span>
         )}
@@ -322,12 +332,8 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
     <div className="game-card">
       <div className="game-card-header-row">
         <div className="game-card-meta">
-          {row.live ? (
-            <>
-              <span className="live-pill">Live</span>
-              <span className="live-clock">{liveClock(row.live)}</span>
-            </>
-          ) : fmtTime(row.start_date)}
+          {isLive(row) && <span className="live-pill">Live</span>}
+          {fmtTime(row.start_date)}
         </div>
         {row.venue_name && (
           <div className="game-card-venue">
@@ -337,10 +343,8 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
       </div>
 
       <div className="game-card-teams">
-        {/* Live games show the live score where a final would go, with the
-            pregame projection in parentheses as on completed games. */}
-        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.live ? row.live.away_score : row.away_final_score} completed={row.completed || !!row.live} record={row.away_record} isFcs={row.away_is_fcs} onSelect={onSelectTeam} />
-        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.live ? row.live.home_score : row.home_final_score} completed={row.completed || !!row.live} record={row.home_record} isFcs={row.home_is_fcs} onSelect={onSelectTeam} />
+        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.away_final_score} completed={row.completed} record={row.away_record} isFcs={row.away_is_fcs} onSelect={onSelectTeam} />
+        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.home_final_score} completed={row.completed} record={row.home_record} isFcs={row.home_is_fcs} onSelect={onSelectTeam} />
       </div>
 
       {hasLines && (
@@ -392,14 +396,14 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
                 between picks rather than splitting "Under" from "55". */}
             {row.show_spread_bet && row.bet_team && (
               <span className="pick-item">
-                <strong><TeamName name={row.bet_team} /></strong> {fmtHalfSigned(row.bet_spread)}
+                <strong><TeamName name={row.bet_team} /></strong> <span className="num">{fmtHalfSigned(row.bet_spread)}</span>
                 <ResultBadge result={row.ats_result} />
               </span>
             )}
             {row.show_spread_bet && row.show_total_bet && <span className="pick-sep">/</span>}
             {row.show_total_bet && row.total_pick && (
               <span className="pick-item">
-                <strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> {fmtHalf(row.market_total)}
+                <strong>{row.total_pick === "OVER" ? "Over" : "Under"}</strong> <span className="num">{fmtHalf(row.market_total)}</span>
                 <ResultBadge result={row.total_result} />
               </span>
             )}
@@ -407,7 +411,7 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
         </div>
       )}
       <ExpectedRow row={row} onOpen={onOpenBreakdown} />
-      <LiveExpectedRow row={row} onOpen={onOpenBreakdown} />
+      <HalftimeExpectedRow row={row} onOpen={onOpenBreakdown} />
       </div>
       )}
     </div>
@@ -981,7 +985,7 @@ export default function Home() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [recordData, setRecordData] = useState(null);
   const [breakdownRow, setBreakdownRow] = useState(null);
-  const [shortNames, setShortNames] = useState({});
+  const [shortNames, setShortNames] = useState({ short: {}, abbr: {} });
 
   function openTeamStats(name) {
     setStatsTeam(name);
@@ -1012,7 +1016,7 @@ export default function Home() {
       .then(r => r.json())
       .then(d => {
         setLinesData(d.rows || []);
-        if (d.shortNames) setShortNames(d.shortNames);
+        setShortNames({ short: d.shortNames || {}, abbr: d.abbreviations || {} });
         setTotalTeams(d.totalTeams || null);
         setLastSynced(d.lastSynced || null);
       })

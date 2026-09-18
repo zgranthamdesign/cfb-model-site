@@ -103,17 +103,15 @@ export async function GET(request) {
     .in("game_id", gameIds);
   const expectedByGame = Object.fromEntries((expectedRows || []).map(e => [e.game_id, e]));
 
-  // Games in progress (sync_live_expected.py): live score, and the halftime
-  // expected score once the game reaches the half. Ignored if the table is
-  // missing. Rows for games that have since gone final are left out; the
-  // post-game re-grade replaces them.
-  const { data: liveRows } = await supabase
+  // Halftime snapshots (sync_live_expected.py): the expected score through
+  // the 2nd quarter and the score at the half. Both are fixed once the half
+  // ends, so they never go stale between runs. Ignored if the table is missing.
+  const { data: halftimeRows } = await supabase
     .from("live_expected_scores")
-    .select("game_id, status, period, clock, home_score, away_score, home_expected, away_expected, as_of_period, updated_at")
-    .in("game_id", gameIds);
-  const liveByGame = Object.fromEntries(
-    (liveRows || []).filter(l => l.status === "in_progress").map(l => [l.game_id, l])
-  );
+    .select("game_id, home_score, away_score, home_expected, away_expected, as_of_period")
+    .in("game_id", gameIds)
+    .not("home_expected", "is", null);
+  const halftimeByGame = Object.fromEntries((halftimeRows || []).map(l => [l.game_id, l]));
 
   const { data: syncRows } = await supabase
     .from("sync_status")
@@ -127,7 +125,8 @@ export async function GET(request) {
     const away = teamById[g.away_team_id];
     const line = lineByGame[g.game_id] || {};
     const expected = g.completed ? expectedByGame[g.game_id] : null;
-    const live = g.completed ? null : liveByGame[g.game_id] || null;
+    // Shown until the post-game re-grade exists, which then takes the row.
+    const halftime = expected ? null : halftimeByGame[g.game_id] || null;
     const venue = venueById[g.venue_id];
     const venue_name = venue?.name || g.venue || null;
     const venue_location = venue && venue.city && venue.state ? `${venue.city}, ${venue.state}` : null;
@@ -273,7 +272,7 @@ export async function GET(request) {
       away_expected_score: expected?.away_expected ?? null,
       expected_garbage_time: expected?.garbage_time ?? false,
       expected_overtime: expected?.overtime ?? false,
-      live,
+      halftime,
     };
   });
 
@@ -285,6 +284,10 @@ export async function GET(request) {
   const shortNames = Object.fromEntries(
     (allTeams || []).filter(t => t.short_name).map(t => [t.school, t.short_name])
   );
+  // CFBD abbreviations (SYR, PITT) for the tightest phone layouts.
+  const abbreviations = Object.fromEntries(
+    (allTeams || []).filter(t => t.abbreviation).map(t => [t.school, t.abbreviation])
+  );
 
-  return NextResponse.json({ rows, lastSynced, totalTeams: allRatings?.length || null, shortNames });
+  return NextResponse.json({ rows, lastSynced, totalTeams: allRatings?.length || null, shortNames, abbreviations });
 }
