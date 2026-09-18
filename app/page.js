@@ -308,7 +308,7 @@ function ExpectedRow({ row, onOpen }) {
   );
 }
 
-function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
+function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown, onOpenMatchup }) {
   // Games against FCS opponents have no market or model lines. Rendering the
   // grid anyway produced four columns of dashes that looked broken, so the
   // grid only shows when at least one value exists.
@@ -414,6 +414,7 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
       )}
       <ExpectedRow row={row} onOpen={onOpenBreakdown} />
       <HalftimeExpectedRow row={row} onOpen={onOpenBreakdown} />
+      <MatchupRow row={row} onOpen={onOpenMatchup} />
       </div>
       )}
     </div>
@@ -559,7 +560,7 @@ const BREAKDOWN_POINTS = [
     value: t => t.breakdown.contributions.finish_per_drive ?? t.breakdown.contributions.pts_per_opp,
     info: l => [
       `Average points on drives that reached the opponent's 40. The FBS average is about ${one(l.pts_per_opp)}, a mix of touchdowns, field goals and trips that came away empty.`,
-      "Finishing is mostly luck from one game to the next. A missed field goal, a drop in the end zone or a fourth-down stop swings it, and how well a team finished one game barely predicts how it finishes the next. So the model pulls it hard toward average: a game with six chances keeps about a tenth of its own rate, and the rest is treated as average finishing.",
+      "Finishing swings a lot from one game to the next. A missed field goal, a drop in the end zone or a fourth-down stop can move it sharply. So the model meets it halfway: a game with six chances keeps about half of its own rate and treats the rest as average finishing. With only one or two chances, it stays close to average.",
       "It only counts on the chances a team actually had. A team that scored 8 points on its only chance gets credit for that one chance, not for every drive, which keeps this line small unless a team finished unusually well or poorly on a lot of chances.",
     ],
   },
@@ -659,6 +660,194 @@ function BoxScore({ box, row }) {
         </section>
       )}
     </>
+  );
+}
+
+// MATCHUP row: opens the head-to-head screen. FBS vs. FBS only, since FCS
+// teams have no profile.
+function MatchupRow({ row, onOpen }) {
+  if (row.home_is_fcs || row.away_is_fcs) return null;
+  const open = () => onOpen && onOpen(row);
+  return (
+    <div
+      className="game-card-footer-row game-card-expected-row is-clickable"
+      role="button"
+      tabIndex={0}
+      aria-label={`See the ${row.away_team} vs. ${row.home_team} matchup`}
+      onClick={open}
+      onKeyDown={e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open();
+        }
+      }}
+    >
+      <span className="stat-label-meta">Matchup</span>
+      <span className="game-card-picks-value">
+        <span>Head to head</span>
+        <span className="material-symbols-rounded expected-chevron" aria-hidden="true">chevron_right</span>
+      </span>
+    </div>
+  );
+}
+
+// "TENN −35.5" from a home-relative spread (negative = home favored).
+function spreadText(spread, home, away, names) {
+  if (spread == null) return "—";
+  if (spread === 0) return "Pick'em";
+  const fav = spread < 0 ? home : away;
+  return `${names.abbr[fav] || fav} −${Math.abs(spread)}`;
+}
+
+// Phone labels for the head-to-head rows, where the full ones hit the bars.
+const MU_SHORT = { moving: "Moving ball", run: "Run game", pass: "Pass game", schedule: "On schedule" };
+
+// Head-to-head screen: both teams' profiles set against each other by
+// possession, with plain-language things to look for. From /api/matchup.
+function MatchupPanel({ row, onClose }) {
+  const [state, setState] = useState({ loading: true });
+  const names = useContext(ShortNamesContext);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/matchup?game_id=${row.game_id}`)
+      .then(async r => {
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error || "No matchup yet");
+        return body;
+      })
+      .then(d => { if (!cancelled) setState({ data: d }); })
+      .catch(e => { if (!cancelled) setState({ error: e.message }); });
+    return () => { cancelled = true; };
+  }, [row.game_id]);
+
+  const d = state.data;
+  const abbr = team => names.abbr[team] || team;
+
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="stats-panel breakdown-panel" onClick={e => e.stopPropagation()}>
+        <div className="stats-panel-header">
+          <div className="breakdown-title">
+            <h2>Matchup</h2>
+            <div className="breakdown-subtitle">{row.away_team} @ {row.home_team}</div>
+          </div>
+          <button className="stats-panel-close" onClick={onClose} aria-label="Close">×</button>
+        </div>
+
+        {state.loading && <div className="loading">Loading matchup...</div>}
+        {state.error && <div className="empty">{state.error}.</div>}
+
+        {d && (
+          <>
+            <div className="mu-meta">
+              {d.line && (
+                <span>
+                  Market {spreadText(d.line.market_spread, d.home, d.away, names)} · Model{" "}
+                  {spreadText(d.line.model_spread, d.home, d.away, names)}
+                </span>
+              )}
+              {d.early && (
+                <span className="mu-early">
+                  Early read · {d.fbs_games.away === d.fbs_games.home
+                    ? `${d.fbs_games.home} FBS game${d.fbs_games.home === 1 ? "" : "s"} each`
+                    : `${d.fbs_games.away} and ${d.fbs_games.home} FBS games`}
+                </span>
+              )}
+              {d.completed && <span className="mu-early">Profiles include this game</span>}
+            </div>
+
+            {d.look_fors.length > 0 && (
+              <section className="bd-box ts-box">
+                <div className="ts-band">
+                  <span className="bd-section-title">Things to look for</span>
+                </div>
+                <ul className="mu-looks">
+                  {d.look_fors.map((n, i) => (
+                    <li key={i}>
+                      <span className={`mu-tag is-${n.tone}`}>{n.tag}</span> {n.text}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {d.possessions.map(pos => (
+              <section className="bd-box ts-box" key={pos.offense}>
+                <div className="ts-band">
+                  <span className="bd-section-title">When {pos.offense} has the ball</span>
+                </div>
+                <div className="mu-row mu-head">
+                  <span />
+                  <span>{abbr(pos.offense)} off</span>
+                  <span>{abbr(pos.defense)} def</span>
+                  <span className="mu-edge-head">Edge</span>
+                </div>
+                {pos.rows.map(r => (
+                  <div className="mu-row" key={r.key}>
+                    <span className="mu-label">
+                      <span className="label-full">{r.label}</span>
+                      <span className="label-short">{MU_SHORT[r.key] || r.label}</span>
+                    </span>
+                    {[r.off, r.def].map((side, i) => (
+                      <span className="ts-bar-cell" key={i}>
+                        <span className="ts-bar">
+                          <i className={pctClass(side.pct)} style={{ width: `${side.pct ?? 0}%` }} />
+                        </span>
+                        <span className="ts-pct">{side.pct ?? "—"}</span>
+                      </span>
+                    ))}
+                    <span className={`mu-edge${r.size === "big" ? " is-big" : r.favors ? " is-edge" : ""}`}>
+                      {r.favors ? `${abbr(r.favors)} +${Math.abs(r.edge)}` : "Even"}
+                    </span>
+                  </div>
+                ))}
+              </section>
+            ))}
+
+            <section className="bd-box ts-box">
+              <div className="ts-band">
+                <span className="bd-section-title">Results vs. play</span>
+              </div>
+              <div className="mu-ledger">
+                {[d.away, d.home].map(team => {
+                  const l = team === d.home ? d.ledger.home : d.ledger.away;
+                  const cause = l?.significant ? mainCause(l) : null;
+                  return (
+                    <div key={team}>
+                      <span className="mu-label">{team}</span>
+                      {l ? (
+                        <>
+                          <strong className={l.significant ? (l.ahead > 0 ? "ts-down" : "ts-up") : ""}>
+                            {l.significant
+                              ? `${Math.abs(l.ahead).toFixed(1)} ${l.ahead > 0 ? "ahead of" : "behind"} play`
+                              : "Within normal range"}
+                          </strong>
+                          <span className="mu-sub">
+                            {signed(l.actual_margin)} <span className="label-full">actual</span><span className="label-short">act</span>
+                            {" · "}
+                            {signed(l.expected_margin)} <span className="label-full">expected</span><span className="label-short">exp</span>
+                          </span>
+                          {cause && <span className="mu-sub">Mostly {cause.label.toLowerCase()}</span>}
+                        </>
+                      ) : (
+                        <span className="mu-sub">No graded games yet</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <p className="bd-note">
+              Percentiles are opponent-adjusted, 0 to 100, and higher is better on both sides. Edge
+              is the gap between the offense and the defense: under 15 is even, 15 to 40 an edge,
+              40 or more a big edge. Finishing and turnovers are left out as too noisy to call.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -834,6 +1023,53 @@ function pctClass(pct) {
 
 const signed = n => (n == null ? "—" : `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(1)}`);
 
+// Results vs. play: which cause drove the gap, and how to say it.
+const RESULT_PARTS = [
+  { key: "finishing", label: "Finishing", phrase: "red-zone finishing" },
+  { key: "turnovers", label: "Turnover luck", phrase: "turnover luck" },
+  { key: "other", label: "Other", phrase: "return and defensive scores, or plays the stats miss" },
+];
+
+function mainCause(ledger) {
+  const dir = Math.sign(ledger.ahead) || 1;
+  return RESULT_PARTS
+    .map(p => ({ ...p, value: ledger.parts?.[p.key] ?? 0 }))
+    .filter(p => Math.sign(p.value) === dir)
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))[0] || null;
+}
+
+function resultsSentence(ledger, n) {
+  const x = Math.abs(ledger.ahead).toFixed(1);
+  const games = `${n} game${n === 1 ? "" : "s"}`;
+  if (!ledger.significant) {
+    return `Results and play are ${x} points per game apart, inside the ±${ledger.noise} that's normal over ${games}. No call yet.`;
+  }
+  const cause = mainCause(ledger);
+  const way = ledger.ahead > 0 ? "ahead of" : "behind";
+  return `Results have run ${x} points per game ${way} the play${cause ? `, mostly from ${cause.phrase}` : ""}.`;
+}
+
+// Strengths or weaknesses list: the first four, with the rest behind a
+// "+N more" toggle.
+const STORY_SHOWN = 4;
+
+function StoryList({ items, empty }) {
+  const [open, setOpen] = useState(false);
+  if (!items.length) return <p>{empty}</p>;
+  const hidden = items.length - STORY_SHOWN;
+  const shown = open || hidden <= 0 ? items : items.slice(0, STORY_SHOWN);
+  return (
+    <>
+      <ul>{shown.map(t => <li key={t}>{t}</li>)}</ul>
+      {hidden > 0 && (
+        <button type="button" className="ts-more" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+          {open ? "Show less" : `+${hidden} more`}
+        </button>
+      )}
+    </>
+  );
+}
+
 // Summary tab: the season-to-date profile from sync_team_profiles.py.
 function TeamSummary({ team }) {
   const [state, setState] = useState({ loading: true });
@@ -863,15 +1099,11 @@ function TeamSummary({ team }) {
         <div className="ts-story">
           <div className="ts-story-box is-strong">
             <div className="ts-story-title">Strengths</div>
-            {d.story.strengths.length
-              ? <ul>{d.story.strengths.map(t => <li key={t}>{t}</li>)}</ul>
-              : <p>No clear strengths yet.</p>}
+            <StoryList items={d.story.strengths} empty="No clear strengths yet." />
           </div>
           <div className="ts-story-box is-weak">
             <div className="ts-story-title">Weaknesses</div>
-            {d.story.weaknesses.length
-              ? <ul>{d.story.weaknesses.map(t => <li key={t}>{t}</li>)}</ul>
-              : <p>No clear weaknesses yet.</p>}
+            <StoryList items={d.story.weaknesses} empty="No clear weaknesses yet." />
           </div>
         </div>
       </div>
@@ -917,7 +1149,7 @@ function TeamSummary({ team }) {
       {ledger && ledger.games?.length > 0 && (
         <section className="bd-box ts-box">
           <div className="ts-band">
-            <span className="bd-section-title">Scoreboard vs. play</span>
+            <span className="bd-section-title">Results vs. play</span>
           </div>
           <div className="ts-ledger-cards">
             <div className="ts-card">
@@ -928,18 +1160,32 @@ function TeamSummary({ team }) {
               <span>Expected</span>
               <strong>{signed(ledger.expected_margin)}</strong>
             </div>
-            <div className={`ts-card ${Math.abs(ledger.gap) >= 5 ? (ledger.gap > 0 ? "is-under" : "is-over") : ""}`}>
+            <div className={`ts-card ${ledger.significant ? (ledger.ahead > 0 ? "is-over" : "is-under") : ""}`}>
               <span>
-                <span className="label-full">{ledger.gap >= 0 ? "Underrated by" : "Overrated by"}</span>
-                <span className="label-short">{ledger.gap >= 0 ? "Underrated" : "Overrated"}</span>
+                {ledger.significant ? (ledger.ahead > 0 ? "Ahead of play" : "Behind play") : (
+                  <><span className="label-full">Within normal range</span><span className="label-short">Normal range</span></>
+                )}
               </span>
               <strong>
-                {Math.abs(ledger.gap).toFixed(1)}{" "}
+                {signed(ledger.ahead)}{" "}
                 <small><span className="label-full">pts/game</span><span className="label-short">pts</span></small>
               </strong>
             </div>
           </div>
+          <p className="ts-verdict">{resultsSentence(ledger, ledger.games.length)}</p>
           <div className="ts-ledger-row ts-ledger-head">
+            <span>Why</span>
+            <span />
+            <span>Per game</span>
+          </div>
+          {RESULT_PARTS.map(p => (
+            <div className="ts-ledger-row" key={p.key}>
+              <span>{p.label}</span>
+              <span />
+              <span>{signed(ledger.parts?.[p.key])}</span>
+            </div>
+          ))}
+          <div className="ts-ledger-row ts-ledger-head ts-ledger-gap">
             <span>Game</span>
             <span>Actual</span>
             <span>Expected</span>
@@ -948,9 +1194,7 @@ function TeamSummary({ team }) {
             <div className="ts-ledger-row" key={`${g.week}-${g.opponent}`}>
               <span>Wk {g.week} · <TeamName name={g.opponent} /></span>
               <span>{signed(g.actual)}</span>
-              <span className={g.expected - g.actual >= 5 ? "ts-up" : g.expected - g.actual <= -5 ? "ts-down" : ""}>
-                {signed(g.expected)}
-              </span>
+              <span>{signed(g.expected)}</span>
             </div>
           ))}
         </section>
@@ -991,10 +1235,19 @@ function TeamSummary({ team }) {
             <dd>The margin the team's play was worth, with turnover luck evened out.</dd>
           </div>
           <div>
-            <dt>Underrated / overrated by</dt>
+            <dt>Ahead of / behind play</dt>
             <dd>
-              The gap between the two. Underrated means the scoreboard made them look worse
-              than they played; overrated means better. Gaps under 5 points are noise.
+              Actual minus expected. Ahead means the scoreboard has been kinder than the play;
+              behind means harsher. It's only called when it's bigger than normal game-to-game
+              noise, which starts around ±17 points for one game and shrinks as games add up.
+            </dd>
+          </div>
+          <div>
+            <dt>Why</dt>
+            <dd>
+              Where the gap came from. Finishing is red-zone results beyond what the model credits,
+              which is part skill and part luck. Turnover luck is the part of turnovers the model
+              evens out. Other is return and defensive scores, and plays the stats don't capture.
             </dd>
           </div>
         </dl>
@@ -1257,6 +1510,7 @@ export default function Home() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [recordData, setRecordData] = useState(null);
   const [breakdownRow, setBreakdownRow] = useState(null);
+  const [matchupRow, setMatchupRow] = useState(null);
   const [shortNames, setShortNames] = useState({ short: {}, abbr: {} });
 
   function openTeamStats(name) {
@@ -1427,7 +1681,7 @@ export default function Home() {
               <h2 className="date-heading">{fmtDateHeading(rows[0].start_date)}</h2>
               <div className="game-grid">
                 {rows.map(row => (
-                  <GameCard key={row.game_id} row={row} totalTeams={totalTeams} onSelectTeam={openTeamStats} onOpenBreakdown={setBreakdownRow} />
+                  <GameCard key={row.game_id} row={row} totalTeams={totalTeams} onSelectTeam={openTeamStats} onOpenBreakdown={setBreakdownRow} onOpenMatchup={setMatchupRow} />
                 ))}
               </div>
             </div>
@@ -1535,6 +1789,9 @@ export default function Home() {
           team's schedule; closing it returns to that schedule. */}
       {breakdownRow && (
         <GameBreakdownPanel row={breakdownRow} onClose={() => setBreakdownRow(null)} />
+      )}
+      {matchupRow && (
+        <MatchupPanel row={matchupRow} onClose={() => setMatchupRow(null)} />
       )}
     </div>
     </ShortNamesContext.Provider>

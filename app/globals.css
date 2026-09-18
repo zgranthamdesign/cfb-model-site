@@ -2412,3 +2412,168 @@ th {
 .stats-panel-header .stats-panel-close {
   margin-left: auto;
 }
+
+/* ------------------------------------------------------------------ */
+/* Matchup screen                                                      */
+/* ------------------------------------------------------------------ */
+.mu-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.mu-early {
+  background: #faeeda;
+  color: #633806;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.mu-looks {
+  margin: 0;
+  padding: 0 0 2px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mu-looks li + li {
+  margin-top: 6px;
+}
+
+.mu-tag {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+.mu-tag.is-edge { color: #3b6d11; }
+.mu-tag.is-watch { color: #185fa5; }
+.mu-tag.is-warn { color: #a32d2d; }
+
+.mu-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 72px;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 12px;
+}
+
+.mu-row.mu-head {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+}
+
+.bd-box .mu-row.mu-head + .mu-row {
+  border-top: none;
+}
+
+.mu-edge-head,
+.mu-edge {
+  text-align: right;
+}
+
+.mu-label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+  white-space: nowrap;
+}
+
+.mu-edge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Edges are neutral (they favor a team, not "good" or "bad"); big ones bold. */
+.mu-edge.is-edge { color: var(--text); font-weight: 500; }
+.mu-edge.is-big { color: var(--text); font-weight: 700; }
+
+.mu-row.mu-head {
+  border-top: none;
+  padding-top: 2px;
+}
+
+.mu-ledger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 2px 0 4px;
+}
+
+.mu-ledger > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mu-ledger strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mu-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .mu-row {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 60px;
+    gap: 6px;
+  }
+}
+
+/* Results vs. play: plain-language verdict, and a gap before the game list. */
+.ts-verdict {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.ts-ledger-row.ts-ledger-gap {
+  margin-top: 12px;
+}
+
+/* "+N more" under a strengths or weaknesses list, in the box's own color. */
+.ts-more {
+  margin: 6px 0 0 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.ts-more:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
