@@ -183,6 +183,62 @@ function ResultBadge({ result }) {
   );
 }
 
+// "Q3 8:12", "Half", from the live scoreboard fields.
+function liveClock(live) {
+  if (!live) return "";
+  const clock = (live.clock || "").replace(/^0(\d:)/, "$1");
+  if (live.period === 2 && /^0?0:00$/.test(live.clock || "")) return "Half";
+  if (!live.period) return "";
+  const quarter = live.period > 4 ? "OT" : `Q${live.period}`;
+  return clock ? `${quarter} ${clock}` : quarter;
+}
+
+// LIVE EXP row: the halftime expected score for a game in progress, from
+// sync_live_expected.py. Hidden until the game reaches halftime.
+function LiveExpectedRow({ row, onOpen }) {
+  const live = row.live;
+  if (!live || live.away_expected == null || live.home_expected == null) return null;
+  const open = () => onOpen && onOpen({ ...row, live_breakdown: true });
+  return (
+    <div
+      className="game-card-footer-row game-card-expected-row is-clickable"
+      role="button"
+      tabIndex={0}
+      aria-label={`See why the halftime expected score is ${row.away_team} ${fmtInt(live.away_expected)}, ${row.home_team} ${fmtInt(live.home_expected)}`}
+      onClick={open}
+      onKeyDown={e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open();
+        }
+      }}
+    >
+      <span className="stat-label-meta">Live Exp · Half</span>
+      <span className="game-card-picks-value">
+        <TeamName name={row.away_team} /> {fmtInt(live.away_expected)}
+        <span className="stat-sep">·</span>
+        <TeamName name={row.home_team} /> {fmtInt(live.home_expected)}
+        <span className="market-hover expected-hover">
+          <span className="market-hover-icon">ⓘ</span>
+          <div className="market-tooltip expected-tooltip">
+            <div className="market-tooltip-header">Live expected score</div>
+            <p>
+              What the first half was worth based on how both teams played,
+              the same way the post-game expected score is built. Updated once,
+              at halftime.
+            </p>
+            <p>
+              A first half is a small sample, roughly five drives each. Treat
+              gaps under about 3 points per team as noise.
+            </p>
+          </div>
+        </span>
+        <span className="material-symbols-rounded expected-chevron" aria-hidden="true">chevron_right</span>
+      </span>
+    </div>
+  );
+}
+
 // EXPECTED row: what each team's play was worth, from sync_expected_scores.py.
 // Only rendered for completed games that have been re-graded.
 function ExpectedRow({ row, onOpen }) {
@@ -265,7 +321,14 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
   return (
     <div className="game-card">
       <div className="game-card-header-row">
-        <div className="game-card-meta">{fmtTime(row.start_date)}</div>
+        <div className="game-card-meta">
+          {row.live ? (
+            <>
+              <span className="live-pill">Live</span>
+              <span className="live-clock">{liveClock(row.live)}</span>
+            </>
+          ) : fmtTime(row.start_date)}
+        </div>
         {row.venue_name && (
           <div className="game-card-venue">
             {row.venue_name}{row.venue_location ? ` · ${row.venue_location}` : ""}
@@ -274,8 +337,10 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
       </div>
 
       <div className="game-card-teams">
-        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.away_final_score} completed={row.completed} record={row.away_record} isFcs={row.away_is_fcs} onSelect={onSelectTeam} />
-        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.home_final_score} completed={row.completed} record={row.home_record} isFcs={row.home_is_fcs} onSelect={onSelectTeam} />
+        {/* Live games show the live score where a final would go, with the
+            pregame projection in parentheses as on completed games. */}
+        <TeamRow name={row.away_team} logo={row.away_logo} rank={row.away_power_rank} totalTeams={totalTeams} score={row.away_projected_score} finalScore={row.live ? row.live.away_score : row.away_final_score} completed={row.completed || !!row.live} record={row.away_record} isFcs={row.away_is_fcs} onSelect={onSelectTeam} />
+        <TeamRow name={row.home_team} logo={row.home_logo} rank={row.home_power_rank} totalTeams={totalTeams} score={row.home_projected_score} finalScore={row.live ? row.live.home_score : row.home_final_score} completed={row.completed || !!row.live} record={row.home_record} isFcs={row.home_is_fcs} onSelect={onSelectTeam} />
       </div>
 
       {hasLines && (
@@ -342,6 +407,7 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown }) {
         </div>
       )}
       <ExpectedRow row={row} onOpen={onOpenBreakdown} />
+      <LiveExpectedRow row={row} onOpen={onOpenBreakdown} />
       </div>
       )}
     </div>
@@ -535,7 +601,7 @@ function GameBreakdownPanel({ row, onClose }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/game-breakdown?game_id=${row.game_id}`)
+    fetch(`/api/game-breakdown?game_id=${row.game_id}${row.live_breakdown ? "&live=1" : ""}`)
       .then(async r => {
         const body = await r.json();
         if (!r.ok) throw new Error(body.error || "Could not load breakdown");
@@ -544,7 +610,7 @@ function GameBreakdownPanel({ row, onClose }) {
       .then(d => { if (!cancelled) setData(d); })
       .catch(e => { if (!cancelled) setError(e.message); });
     return () => { cancelled = true; };
-  }, [row.game_id]);
+  }, [row.game_id, row.live_breakdown]);
 
   const d = data?.details;
   const away = d?.away;
@@ -557,7 +623,10 @@ function GameBreakdownPanel({ row, onClose }) {
         <div className="stats-panel-header">
           <div className="breakdown-title">
             <h2>Expected Score</h2>
-            <div className="breakdown-subtitle">{row.away_team} @ {row.home_team}</div>
+            <div className="breakdown-subtitle">
+              {row.away_team} @ {row.home_team}
+              {row.live_breakdown && " · first half"}
+            </div>
           </div>
           <button className="stats-panel-close" onClick={onClose} aria-label="Close">×</button>
         </div>
@@ -568,7 +637,10 @@ function GameBreakdownPanel({ row, onClose }) {
         {d && (
           <>
             <div className="bd-summary">
-              {[["away", away, row.away_logo, row.away_final_score], ["home", home, row.home_logo, row.home_final_score]].map(([side, t, logo, final]) => (
+              {/* Live: the halftime score the expected score is measured
+                  against, not the current one. */}
+              {[["away", away, row.away_logo, row.live_breakdown ? away.competitive_points : row.away_final_score],
+                ["home", home, row.home_logo, row.live_breakdown ? home.competitive_points : row.home_final_score]].map(([side, t, logo, final]) => (
                 <div className="bd-summary-team" key={side}>
                   <div className="bd-summary-name">
                     {logo && <img src={logo} alt="" className="team-logo bd-logo" />}
@@ -576,7 +648,7 @@ function GameBreakdownPanel({ row, onClose }) {
                   </div>
                   <div className="bd-summary-scores">
                     <div>
-                      <span className="stat-label-meta">Final</span>
+                      <span className="stat-label-meta">{row.live_breakdown ? "Half" : "Final"}</span>
                       <span className="bd-summary-value">{fmtInt(final)}</span>
                     </div>
                     <div>

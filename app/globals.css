@@ -1693,3 +1693,46 @@ th {
     display: inline;
   }
 }
+
+/* Live games: red tag in the card header, with the game clock beside it. */
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #d92d20;
+  color: #fff;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 3px 6px 3px 5px;
+  vertical-align: middle;
+  border-radius: 3px;
+}
+
+.live-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  50% { opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-pill::before {
+    animation: none;
+  }
+}
+
+.live-clock {
+  margin-left: 8px;
+  color: #d92d20;
+  font-weight: 600;
+}

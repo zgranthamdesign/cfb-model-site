@@ -16,11 +16,20 @@ export async function GET(request) {
     return NextResponse.json({ error: "game_id is required" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("expected_scores")
-    .select("game_id, away_expected, home_expected, garbage_time, overtime, details")
-    .eq("game_id", gameId)
-    .limit(1);
+  // live=1: the in-game (halftime) breakdown from sync_live_expected.py,
+  // which has the same details shape.
+  const live = searchParams.get("live") === "1";
+  const { data, error } = live
+    ? await supabase
+        .from("live_expected_scores")
+        .select("game_id, away_expected, home_expected, as_of_period, details")
+        .eq("game_id", gameId)
+        .limit(1)
+    : await supabase
+        .from("expected_scores")
+        .select("game_id, away_expected, home_expected, garbage_time, overtime, details")
+        .eq("game_id", gameId)
+        .limit(1);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
