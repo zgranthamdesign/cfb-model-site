@@ -439,10 +439,13 @@ function StatRow({ label, value, rank }) {
       <span className="stat-label">{label}</span>
       <span className="stat-row-right">
         <span className="stat-value">{value}</span>
-        {rank != null && (
+        {rank != null ? (
           <span className="percentile-badge" style={style}>
             #{rank.rank} of {rank.total}
           </span>
+        ) : (
+          // Holds the Pctl column so the value stays under its header.
+          <span className="percentile-spacer" aria-hidden="true" />
         )}
       </span>
     </div>
@@ -605,13 +608,16 @@ function BoxScore({ box, row }) {
   const periods = Math.max(box.line.away.length, box.line.home.length, 4);
   const periodLabel = i => (i < 4 ? `${i + 1}` : i === 4 ? "OT" : `${i - 3}OT`);
   const firstGarbage = box.scoring.findIndex(sc => sc.garbage);
+  const lineColumns = `minmax(0, 1fr) repeat(${periods}, 34px) 40px`;
   return (
     <>
-      <div className="bd-section-heading stat-label-meta">Box score</div>
-      <div className="bx-line" style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${periods}, 34px) 40px` }}>
-        <span />
+      <section className="bd-box">
+      <div className="bx-line bx-line-head" style={{ gridTemplateColumns: lineColumns }}>
+        <span className="bd-section-title">Box score</span>
         {Array.from({ length: periods }, (_, i) => <span key={i} className="bx-head">{periodLabel(i)}</span>)}
         <span className="bx-head">T</span>
+      </div>
+      <div className="bx-line" style={{ gridTemplateColumns: lineColumns }}>
         {[["away", row.away_team], ["home", row.home_team]].map(([side, name]) => (
           <Fragment key={side}>
             <span className="bx-team"><TeamName name={name} phone="abbr" /></span>
@@ -623,7 +629,14 @@ function BoxScore({ box, row }) {
         ))}
       </div>
 
+      </section>
+
       {box.scoring.length > 0 && (
+        <section className="bd-box">
+        <div className="bx-play bx-play-head">
+          <span className="bd-section-title">Scoring plays</span>
+          <span className="bx-head">Score</span>
+        </div>
         <div className="bx-scoring">
           {box.scoring.map((sc, i) => (
             <Fragment key={i}>
@@ -643,6 +656,7 @@ function BoxScore({ box, row }) {
             </Fragment>
           ))}
         </div>
+        </section>
       )}
     </>
   );
@@ -717,10 +731,10 @@ function GameBreakdownPanel({ row, onClose }) {
 
             {d.box && <BoxScore box={d.box} row={row} />}
 
-            <div className="bd-section-heading stat-label-meta">The stats</div>
+            <section className="bd-box">
             <div className="bd-table bd-table-stats">
               <div className="bd-row bd-head">
-                <span />
+                <span className="bd-section-title">The stats</span>
                 <span><TeamName name={row.away_team} /></span>
                 <span><TeamName name={row.home_team} /></span>
                 <span>Avg</span>
@@ -743,11 +757,15 @@ function GameBreakdownPanel({ row, onClose }) {
                 score doesn't use it. {garbageTimeNote(d.garbage_time_start)}
               </p>
             )}
+            </section>
 
-            <div className="bd-section-heading stat-label-meta">How the expected score adds up</div>
+            <section className="bd-box">
             <div className="bd-table bd-table-points">
               <div className="bd-row bd-head">
-                <span />
+                <span className="bd-section-title">
+                  <span className="label-full">How the expected score adds up</span>
+                  <span className="label-short">How it adds up</span>
+                </span>
                 <span><TeamName name={row.away_team} /></span>
                 <span><TeamName name={row.home_team} /></span>
               </div>
@@ -791,6 +809,7 @@ function GameBreakdownPanel({ row, onClose }) {
                 <span>{one(home.expected)}</span>
               </div>
             </div>
+            </section>
 
             <p className="bd-note">
               Garbage time and overtime aren't counted. Point values compare each stat
@@ -857,19 +876,12 @@ function TeamSummary({ team }) {
         </div>
       </div>
 
-      <div className="stats-section">
-        <h3>Identity · FBS percentile</h3>
-        <p className="ts-help">
-          Where the team ranks among FBS teams, 0 to 100. Higher is always better, on offense
-          and defense: 90 means better than 90% of teams, 10 means worse than 90%.
-        </p>
-        <div className="ts-legend">
-          <span><i className="is-strong" />Strength · 70+</span>
-          <span><i />Average</span>
-          <span><i className="is-weak" />Weakness · 30 or less</span>
-        </div>
-        <div className="ts-dim ts-dim-head">
-          <span />
+      <section className="bd-box ts-box">
+        <div className="ts-dim ts-dim-head ts-band">
+          <span className="bd-section-title">
+            <span className="label-full">Identity (FBS percentile)</span>
+            <span className="label-short">Identity</span>
+          </span>
           <span>Offense</span>
           <span>Defense</span>
         </div>
@@ -889,11 +901,24 @@ function TeamSummary({ team }) {
             ))}
           </div>
         ))}
-      </div>
+        <div className="ts-key">
+          <p className="ts-help">
+            Where the team ranks among FBS teams, 0 to 100. Higher is always better, on offense
+            and defense: 90 means better than 90% of teams, 10 means worse than 90%.
+          </p>
+          <div className="ts-legend">
+            <span><i className="is-strong" />Strength · 70+</span>
+            <span><i />Average</span>
+            <span><i className="is-weak" />Weakness · 30 or less</span>
+          </div>
+        </div>
+      </section>
 
       {ledger && ledger.games?.length > 0 && (
-        <div className="stats-section">
-          <h3>Scoreboard vs. play</h3>
+        <section className="bd-box ts-box">
+          <div className="ts-band">
+            <span className="bd-section-title">Scoreboard vs. play</span>
+          </div>
           <div className="ts-ledger-cards">
             <div className="ts-card">
               <span>Actual</span>
@@ -904,8 +929,14 @@ function TeamSummary({ team }) {
               <strong>{signed(ledger.expected_margin)}</strong>
             </div>
             <div className={`ts-card ${Math.abs(ledger.gap) >= 5 ? (ledger.gap > 0 ? "is-under" : "is-over") : ""}`}>
-              <span>{ledger.gap >= 0 ? "Underrated by" : "Overrated by"}</span>
-              <strong>{Math.abs(ledger.gap).toFixed(1)} <small>pts/game</small></strong>
+              <span>
+                <span className="label-full">{ledger.gap >= 0 ? "Underrated by" : "Overrated by"}</span>
+                <span className="label-short">{ledger.gap >= 0 ? "Underrated" : "Overrated"}</span>
+              </span>
+              <strong>
+                {Math.abs(ledger.gap).toFixed(1)}{" "}
+                <small><span className="label-full">pts/game</span><span className="label-short">pts</span></small>
+              </strong>
             </div>
           </div>
           <div className="ts-ledger-row ts-ledger-head">
@@ -922,19 +953,16 @@ function TeamSummary({ team }) {
               </span>
             </div>
           ))}
-        </div>
+        </section>
       )}
 
-      <div className="stats-section">
-        <h3>Trend · last 2 games vs. season</h3>
+      <section className="bd-box ts-box">
+        <div className={d.trend ? "ts-trend ts-trend-head ts-band" : "ts-band"}>
+          <span className="bd-section-title">Trend</span>
+          {d.trend && <><span>Season</span><span>Last 2</span><span /></>}
+        </div>
         {d.trend ? (
           <>
-            <div className="ts-trend ts-trend-head">
-              <span />
-              <span>Season</span>
-              <span>Last 2</span>
-              <span />
-            </div>
             {d.trend.map(t => (
               <div className="ts-trend" key={t.label}>
                 <span>{t.label}</span>
@@ -949,7 +977,7 @@ function TeamSummary({ team }) {
         ) : (
           <p className="ts-footnote">Trends start after a team's 3rd FBS game.</p>
         )}
-      </div>
+      </section>
 
       {/* Key for the Scoreboard vs. play numbers, set apart from the content. */}
       {ledger && ledger.games?.length > 0 && (
@@ -1001,6 +1029,7 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
         <div className="stats-panel-header">
           {data?.logo_url && <img src={data.logo_url} alt="" className="team-logo" />}
           <h2>{team}</h2>
+          {data?.conference && <span className="conf-badge">{data.conference}</span>}
           <button className="stats-panel-close" onClick={onClose}>×</button>
         </div>
 
@@ -1042,8 +1071,11 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
             )}
 
             {data?.source_rankings && Object.values(data.source_rankings).some(Boolean) && (
-              <div className="stats-section">
-                <h3>Source Rankings</h3>
+              <section className="bd-box ov-box">
+                <div className="ts-band ov-band">
+                  <span className="bd-section-title">Source rankings</span>
+                  <span className="ov-band-cols"><span className="ov-col-rank">Rank</span></span>
+                </div>
                 {[
                   ["sp_plus", "SP+"],
                   ["fpi", "FPI"],
@@ -1067,7 +1099,7 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
                     </div>
                   );
                 })}
-              </div>
+              </section>
             )}
 
             {data && !data.efficiency && (
@@ -1077,20 +1109,17 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
             {data && data.efficiency && (
               <div className="stats-panel-body">
                 <div className="stats-meta">
-                  {data.conference && <span className="conf-badge">{data.conference}</span>}
                   {data.week != null && <span>Through Week {data.week} ({data.games_played} game{data.games_played === 1 ? "" : "s"})</span>}
                 </div>
 
-                <div className="stats-col-header">
-                  <span></span>
-                  <span className="stats-col-header-right">
-                    <span className="stats-col-label-value">Value</span>
-                    <span className="stats-col-label-pct">Pctl</span>
-                  </span>
-                </div>
-
-                <div className="stats-section">
-                  <h3>Efficiency</h3>
+                <section className="bd-box ov-box">
+                  <div className="ts-band ov-band">
+                    <span className="bd-section-title">Efficiency</span>
+                    <span className="ov-band-cols">
+                      <span className="stats-col-label-value">Value</span>
+                      <span className="stats-col-label-pct">Pctl</span>
+                    </span>
+                  </div>
                   <StatRow label="Off. EPA/play" value={fmt(data.efficiency.off_epa_per_play, 2)} rank={data.ranks?.off_epa_per_play} />
                   <StatRow label="Def. EPA/play" value={fmt(data.efficiency.def_epa_per_play, 2)} rank={data.ranks?.def_epa_per_play} />
                   <StatRow label="Off. Success Rate" value={fmtPct(data.efficiency.off_success_rate)} rank={data.ranks?.off_success_rate} />
@@ -1105,19 +1134,31 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
                   <StatRow label="Def. EPA (Pass)" value={fmt(data.efficiency.def_epa_pass, 2)} rank={data.ranks?.def_epa_pass} />
                   <StatRow label="Plays/Game" value={fmt(data.efficiency.plays_per_game)} />
                   <StatRow label="Def. Havoc Rate" value={fmtPct(data.efficiency.def_havoc_rate)} rank={data.ranks?.def_havoc_rate} />
-                </div>
+                </section>
 
-                <div className="stats-section">
-                  <h3>SP+</h3>
+                <section className="bd-box ov-box">
+                  <div className="ts-band ov-band">
+                    <span className="bd-section-title">SP+</span>
+                    <span className="ov-band-cols">
+                      <span className="stats-col-label-value">Value</span>
+                      <span className="stats-col-label-pct">Pctl</span>
+                    </span>
+                  </div>
                   <StatRow label="Overall" value={fmt(data.sp_plus?.rating)} rank={data.ranks?.sp_plus_rating} />
                   <StatRow label="Offense" value={fmt(data.sp_plus?.offense)} rank={data.ranks?.sp_plus_offense} />
                   <StatRow label="Defense" value={fmt(data.sp_plus?.defense)} rank={data.ranks?.sp_plus_defense} />
-                </div>
+                </section>
 
-                <div className="stats-section">
-                  <h3>Talent</h3>
+                <section className="bd-box ov-box">
+                  <div className="ts-band ov-band">
+                    <span className="bd-section-title">Talent</span>
+                    <span className="ov-band-cols">
+                      <span className="stats-col-label-value">Value</span>
+                      <span className="stats-col-label-pct">Pctl</span>
+                    </span>
+                  </div>
                   <StatRow label="Composite" value={fmt(data.talent?.composite)} rank={data.ranks?.talent_composite} />
-                </div>
+                </section>
               </div>
             )}
           </>

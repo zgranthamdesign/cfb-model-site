@@ -934,7 +934,10 @@ th {
 }
 
 .stats-panel-header h2 {
-  flex: 1;
+  /* Sized to the name so the conference tag sits right after it; the close
+     button pushes itself to the right edge. */
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: 18px;
   font-weight: 600;
@@ -1455,6 +1458,15 @@ th {
   color: var(--text);
 }
 
+/* Inside a section box the box adds 6px below the last row, so the total
+   row trims its own bottom padding to sit centered between its top rule and
+   the box edge. */
+.bd-box .bd-total {
+  /* Rule runs edge to edge across the box, like the title band's. */
+  margin: 6px -12px 0;
+  padding: 10px 12px 4px;
+}
+
 /* Full-game value under a competitive-time stat, when garbage time changed it. */
 .bd-stat {
   display: flex;
@@ -1911,7 +1923,8 @@ th {
 
 .ts-dim {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+  /* Wide enough for "IDENTITY (FBS PERCENTILE)" in the title band. */
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   padding: 7px 0;
@@ -2104,6 +2117,7 @@ th {
 
 
   .ts-dim {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
     font-size: 11.5px;
   }
@@ -2224,4 +2238,177 @@ th {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #8a8c82;
+}
+
+/* Breakdown modal sections: each in its own lightly shaded, outlined box,
+   with the section title on the same line as its column headers. */
+.bd-box {
+  background: #fafaf8;
+  border: 1px solid #e0e2dc;
+  padding: 0 12px 6px;
+  margin-bottom: 12px;
+}
+
+/* Title block: the header row runs edge to edge in a slightly darker grey. */
+.bd-box .bd-row.bd-head,
+.bd-box .bx-line-head,
+.bd-box .bx-play-head {
+  background: #f0f0ec;
+  margin: 0 -12px 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e2dc;
+}
+
+.bd-box .bx-line-head {
+  margin-bottom: 6px;
+}
+
+/* The header's own bottom edge replaces the first row's divider. */
+.bd-box .bd-head + .bd-row {
+  border-top: none;
+}
+
+.bd-box .bd-table {
+  margin-bottom: 0;
+}
+
+.bd-box .bx-line {
+  margin-bottom: 6px;
+}
+
+.bd-box .bx-scoring {
+  margin-bottom: 0;
+}
+
+.bd-box .bd-footnote {
+  margin: 8px 0 4px;
+}
+
+.bd-row > span.bd-section-title,
+.bx-line > span.bd-section-title,
+.bx-play > span.bd-section-title {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #17462f;
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+/* Scoring plays header: the title spans the time, team and play columns;
+   "Score" sits over the score column. */
+.bx-play.bx-play-head {
+  border-top: none;
+}
+
+.bx-play-head .bd-section-title {
+  grid-column: 1 / 4;
+}
+
+.bd-box .bx-play-head + .bx-scoring .bx-play:first-child {
+  border-top: none;
+}
+
+/* Summary tab sections, boxed like the game breakdown's: a darker grey
+   title band (with column headers where the section has them), then rows. */
+.ts-box {
+  padding-bottom: 8px;
+}
+
+.bd-box .ts-band {
+  background: #f0f0ec;
+  margin: 0 -12px 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e2dc;
+  border-top: none;
+}
+
+.ts-band > span.bd-section-title {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #17462f;
+  white-space: nowrap;
+}
+
+.bd-box .ts-band + .ts-dim,
+.bd-box .ts-band + .ts-trend {
+  border-top: none;
+}
+
+.ts-key {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ts-key .ts-legend {
+  margin-bottom: 2px;
+}
+
+.ts-box .ts-footnote {
+  margin: 0 0 2px;
+}
+
+/* Overview tab sections: same boxes and title bands as Summary, with the
+   Value / Pctl (or Rank) column headers in the band over their columns. */
+.ov-box {
+  padding-bottom: 4px;
+}
+
+.bd-box .ov-band {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ov-band-cols {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ov-band-cols > span,
+.ov-col-rank {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+}
+
+.ov-col-rank {
+  text-align: right;
+}
+
+.bd-box .ov-band + .stat-row {
+  border-top: none;
+}
+
+/* Fixed Pctl column so badges of different lengths ("#7" vs "#113 of 138")
+   line up under the header. */
+.ov-box .percentile-badge,
+.ov-box .percentile-spacer,
+.ov-band-cols .stats-col-label-pct {
+  width: 80px;
+  text-align: center;
+}
+
+.ov-box .percentile-spacer {
+  display: inline-block;
+}
+
+.ov-band-cols .stats-col-label-value {
+  width: 50px;
+  text-align: center;
+}
+
+.stats-panel-header .stats-panel-close {
+  margin-left: auto;
 }
