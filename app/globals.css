@@ -1778,3 +1778,450 @@ th {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Team Summary tab                                                    */
+/* ------------------------------------------------------------------ */
+.ts-story {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.ts-story-box {
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.ts-story-box p,
+.ts-story-box ul {
+  margin: 0;
+}
+
+.ts-story-box ul {
+  padding-left: 16px;
+}
+
+.ts-story-box li + li {
+  margin-top: 4px;
+}
+
+/* Plain-language key for the percentile bars and the margin cards. */
+.ts-help {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.ts-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.ts-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ts-legend i {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: #b4b2a9;
+}
+
+.ts-legend i.is-strong {
+  background: #3b6d11;
+}
+
+.ts-legend i.is-weak {
+  background: #d85a30;
+}
+
+/* Legend box at the bottom of the tab. */
+.ts-defs {
+  margin: 4px 0 0;
+  padding: 0 12px;
+  border: 1px solid #e0e2dc;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* Title above its description, each entry divided by a hairline. */
+.ts-defs > div {
+  padding: 9px 0;
+}
+
+.ts-defs > div + div {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ts-defs dt {
+  margin-bottom: 3px;
+}
+
+/* Every title and row title in the Summary tab shares the STRENGTHS /
+   WEAKNESSES treatment: section headings, bar and trend row labels, game
+   rows, and the margin card labels. */
+.ts .stats-section h3,
+.ts-dim-label,
+.ts-trend > span:first-child,
+.ts-ledger-row > span:first-child,
+.ts-card > span,
+.ts-noisy,
+.ts-defs dt {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+}
+
+.ts-defs dd {
+  margin: 0;
+}
+
+.ts-story-box.is-strong {
+  background: #eaf3de;
+  color: #27500a;
+}
+
+.ts-story-box.is-weak {
+  background: #fcebeb;
+  color: #791f1f;
+}
+
+.ts-story-title {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.ts-dim {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 7px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 12.5px;
+}
+
+.ts-dim.ts-dim-head,
+.ts-trend.ts-trend-head,
+.ts-ledger-row.ts-ledger-head {
+  border-top: none;
+  padding-top: 0;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+}
+
+.ts-dim-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ts-noisy {
+  opacity: 0.7;
+}
+
+.ts-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border-subtle);
+  position: relative;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ts-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #b4b2a9;
+  border-radius: 3px;
+}
+
+.ts-bar i.is-strong {
+  background: #3b6d11;
+}
+
+.ts-bar i.is-weak {
+  background: #d85a30;
+}
+
+.ts-pct {
+  width: 22px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.ts-ledger-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ts-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ts-card span {
+  white-space: nowrap;
+}
+
+.ts-card strong {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-card small {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ts-card.is-under {
+  background: #eaf3de;
+  border-color: #c0dd97;
+}
+
+.ts-card.is-under span,
+.ts-card.is-under strong {
+  color: #27500a;
+}
+
+.ts-card.is-over {
+  background: #faeeda;
+  border-color: #fac775;
+}
+
+.ts-card.is-over span,
+.ts-card.is-over strong {
+  color: #633806;
+}
+
+.ts-ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 72px;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-subtle);
+  /* Same size as the legend descriptions. */
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-ledger-row > span:not(:first-child) {
+  text-align: right;
+}
+
+.ts-up {
+  color: #3b6d11;
+  font-weight: 600;
+}
+
+.ts-down {
+  color: #a32d2d;
+  font-weight: 600;
+}
+
+.ts-trend {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 60px 60px 80px;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-dir {
+  text-align: right;
+  font-weight: 600;
+}
+
+.ts-dir.is-improving {
+  color: #3b6d11;
+}
+
+.ts-dir.is-slipping {
+  color: #a32d2d;
+}
+
+.ts-dir.is-steady {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ts-footnote {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: 8px 0 0;
+  line-height: 1.45;
+}
+
+@media (max-width: 600px) {
+  .ts-story {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ts-story-box {
+    font-size: 11px;
+  }
+
+
+
+  .ts-dim {
+    gap: 8px;
+    font-size: 11.5px;
+  }
+
+  .ts-card {
+    padding: 8px;
+  }
+
+
+
+  .ts-card strong {
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  .ts-card small {
+    font-size: 10px;
+  }
+
+  .ts-trend {
+    grid-template-columns: minmax(0, 1.4fr) 48px 48px 66px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Box score in the expected score breakdown                           */
+/* ------------------------------------------------------------------ */
+.bx-line {
+  display: grid;
+  align-items: center;
+  row-gap: 6px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+}
+
+.bx-head {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+  text-align: right;
+}
+
+.bx-team {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bx-num {
+  text-align: right;
+}
+
+.bx-total {
+  font-weight: 700;
+}
+
+.bx-scoring {
+  margin-bottom: 18px;
+}
+
+.bx-play {
+  display: grid;
+  grid-template-columns: 70px 56px minmax(0, 1fr) 56px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bx-when,
+.bx-who {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bx-score {
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.bx-scored {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Scores after garbage time began: shown, but faded, since the expected
+   score leaves them out. */
+.bx-play.is-garbage {
+  opacity: 0.45;
+}
+
+.bx-gt-divider {
+  margin-top: 6px;
+  padding: 5px 0;
+  border-top: 1px dashed #b4b2a9;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a8c82;
+}

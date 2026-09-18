@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { createContext, Fragment, useContext, useEffect, useState, useMemo } from "react";
 
 function fmt(n, digits = 1) {
   if (n === null || n === undefined || isNaN(n)) return "—";
@@ -67,8 +67,10 @@ const ShortNamesContext = createContext({ short: {}, abbr: {} });
 // A team name that swaps to a shorter form on phones, where long names get
 // cut off. `phone="abbr"` uses the abbreviation for the tightest spots.
 // Falls back to the short name, then the full name.
-function TeamName({ name, phone = "short" }) {
+function TeamName({ name, phone = "short", always }) {
   const names = useContext(ShortNamesContext);
+  // always="abbr": the abbreviation at every screen size, for narrow columns.
+  if (always === "abbr" && names.abbr[name]) return names.abbr[name];
   const short = (phone === "abbr" && names.abbr[name]) || names.short[name];
   if (!short || short === name) return name;
   return (
@@ -597,6 +599,55 @@ function hasGarbageTimeStats(details) {
   }));
 }
 
+// Box score for the breakdown modal: points by quarter, then every score in
+// order, with garbage-time scores marked. Built by sync_expected_scores.py.
+function BoxScore({ box, row }) {
+  const periods = Math.max(box.line.away.length, box.line.home.length, 4);
+  const periodLabel = i => (i < 4 ? `${i + 1}` : i === 4 ? "OT" : `${i - 3}OT`);
+  const firstGarbage = box.scoring.findIndex(sc => sc.garbage);
+  return (
+    <>
+      <div className="bd-section-heading stat-label-meta">Box score</div>
+      <div className="bx-line" style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${periods}, 34px) 40px` }}>
+        <span />
+        {Array.from({ length: periods }, (_, i) => <span key={i} className="bx-head">{periodLabel(i)}</span>)}
+        <span className="bx-head">T</span>
+        {[["away", row.away_team], ["home", row.home_team]].map(([side, name]) => (
+          <Fragment key={side}>
+            <span className="bx-team"><TeamName name={name} phone="abbr" /></span>
+            {Array.from({ length: periods }, (_, i) => (
+              <span key={i} className="bx-num">{box.line[side][i] ?? "–"}</span>
+            ))}
+            <span className="bx-num bx-total">{box.final[side]}</span>
+          </Fragment>
+        ))}
+      </div>
+
+      {box.scoring.length > 0 && (
+        <div className="bx-scoring">
+          {box.scoring.map((sc, i) => (
+            <Fragment key={i}>
+              {i === firstGarbage && (
+                <div className="bx-gt-divider">Garbage time · not counted in the expected score</div>
+              )}
+              <div className={`bx-play${sc.garbage ? " is-garbage" : ""}`}>
+                <span className="bx-when">{sc.period > 4 ? "OT" : `Q${sc.period}`} {sc.clock}</span>
+                <span className="bx-who"><TeamName name={sc.team} always="abbr" /></span>
+                <span className="bx-what">{sc.label}</span>
+                <span className="bx-score">
+                  <span className={sc.side === "away" ? "bx-scored" : ""}>{sc.away_score}</span>
+                  –
+                  <span className={sc.side === "home" ? "bx-scored" : ""}>{sc.home_score}</span>
+                </span>
+              </div>
+            </Fragment>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function GameBreakdownPanel({ row, onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -663,6 +714,8 @@ function GameBreakdownPanel({ row, onClose }) {
                 </div>
               ))}
             </div>
+
+            {d.box && <BoxScore box={d.box} row={row} />}
 
             <div className="bd-section-heading stat-label-meta">The stats</div>
             <div className="bd-table bd-table-stats">
@@ -752,6 +805,176 @@ function GameBreakdownPanel({ row, onClose }) {
   );
 }
 
+// Percentile bar color: strength, weakness, or neither.
+function pctClass(pct) {
+  if (pct == null) return "";
+  if (pct >= 70) return "is-strong";
+  if (pct <= 30) return "is-weak";
+  return "";
+}
+
+const signed = n => (n == null ? "—" : `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(1)}`);
+
+// Summary tab: the season-to-date profile from sync_team_profiles.py.
+function TeamSummary({ team }) {
+  const [state, setState] = useState({ loading: true });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true });
+    fetch(`/api/team-summary?season=2026&team=${encodeURIComponent(team)}`)
+      .then(async r => {
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error || "No summary yet");
+        return body;
+      })
+      .then(d => { if (!cancelled) setState({ data: d.data }); })
+      .catch(e => { if (!cancelled) setState({ error: e.message }); });
+    return () => { cancelled = true; };
+  }, [team]);
+
+  if (state.loading) return <div className="loading">Loading summary...</div>;
+  if (state.error) return <div className="empty">{state.error}.</div>;
+  const d = state.data;
+  const ledger = d.ledger;
+
+  return (
+    <div className="ts">
+      <div className="stats-section">
+        <div className="ts-story">
+          <div className="ts-story-box is-strong">
+            <div className="ts-story-title">Strengths</div>
+            {d.story.strengths.length
+              ? <ul>{d.story.strengths.map(t => <li key={t}>{t}</li>)}</ul>
+              : <p>No clear strengths yet.</p>}
+          </div>
+          <div className="ts-story-box is-weak">
+            <div className="ts-story-title">Weaknesses</div>
+            {d.story.weaknesses.length
+              ? <ul>{d.story.weaknesses.map(t => <li key={t}>{t}</li>)}</ul>
+              : <p>No clear weaknesses yet.</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className="stats-section">
+        <h3>Identity · FBS percentile</h3>
+        <p className="ts-help">
+          Where the team ranks among FBS teams, 0 to 100. Higher is always better, on offense
+          and defense: 90 means better than 90% of teams, 10 means worse than 90%.
+        </p>
+        <div className="ts-legend">
+          <span><i className="is-strong" />Strength · 70+</span>
+          <span><i />Average</span>
+          <span><i className="is-weak" />Weakness · 30 or less</span>
+        </div>
+        <div className="ts-dim ts-dim-head">
+          <span />
+          <span>Offense</span>
+          <span>Defense</span>
+        </div>
+        {d.dimensions.map(dim => (
+          <div className="ts-dim" key={dim.key}>
+            <span className="ts-dim-label">
+              {dim.label}
+              {dim.noisy && <span className="ts-noisy">noisy</span>}
+            </span>
+            {["off", "def"].map(side => (
+              <span className="ts-bar-cell" key={side}>
+                <span className="ts-bar">
+                  <i className={pctClass(dim[side].pct)} style={{ width: `${dim[side].pct ?? 0}%` }} />
+                </span>
+                <span className="ts-pct">{dim[side].pct ?? "—"}</span>
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {ledger && ledger.games?.length > 0 && (
+        <div className="stats-section">
+          <h3>Scoreboard vs. play</h3>
+          <div className="ts-ledger-cards">
+            <div className="ts-card">
+              <span>Actual</span>
+              <strong>{signed(ledger.actual_margin)}</strong>
+            </div>
+            <div className="ts-card">
+              <span>Expected</span>
+              <strong>{signed(ledger.expected_margin)}</strong>
+            </div>
+            <div className={`ts-card ${Math.abs(ledger.gap) >= 5 ? (ledger.gap > 0 ? "is-under" : "is-over") : ""}`}>
+              <span>{ledger.gap >= 0 ? "Underrated by" : "Overrated by"}</span>
+              <strong>{Math.abs(ledger.gap).toFixed(1)} <small>pts/game</small></strong>
+            </div>
+          </div>
+          <div className="ts-ledger-row ts-ledger-head">
+            <span>Game</span>
+            <span>Actual</span>
+            <span>Expected</span>
+          </div>
+          {ledger.games.map(g => (
+            <div className="ts-ledger-row" key={`${g.week}-${g.opponent}`}>
+              <span>Wk {g.week} · <TeamName name={g.opponent} /></span>
+              <span>{signed(g.actual)}</span>
+              <span className={g.expected - g.actual >= 5 ? "ts-up" : g.expected - g.actual <= -5 ? "ts-down" : ""}>
+                {signed(g.expected)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="stats-section">
+        <h3>Trend · last 2 games vs. season</h3>
+        {d.trend ? (
+          <>
+            <div className="ts-trend ts-trend-head">
+              <span />
+              <span>Season</span>
+              <span>Last 2</span>
+              <span />
+            </div>
+            {d.trend.map(t => (
+              <div className="ts-trend" key={t.label}>
+                <span>{t.label}</span>
+                <span>{t.season}</span>
+                <span>{t.recent}</span>
+                <span className={`ts-dir is-${t.direction}`}>
+                  {t.direction === "improving" ? "Improving" : t.direction === "slipping" ? "Slipping" : "Steady"}
+                </span>
+              </div>
+            ))}
+          </>
+        ) : (
+          <p className="ts-footnote">Trends start after a team's 3rd FBS game.</p>
+        )}
+      </div>
+
+      {/* Key for the Scoreboard vs. play numbers, set apart from the content. */}
+      {ledger && ledger.games?.length > 0 && (
+        <dl className="ts-defs">
+          <div>
+            <dt>Actual</dt>
+            <dd>Average final-score margin: points scored minus points allowed.</dd>
+          </div>
+          <div>
+            <dt>Expected</dt>
+            <dd>The margin the team's play was worth, with turnover luck evened out.</dd>
+          </div>
+          <div>
+            <dt>Underrated / overrated by</dt>
+            <dd>
+              The gap between the two. Underrated means the scoreboard made them look worse
+              than they played; overrated means better. Gaps under 5 points are noise.
+            </dd>
+          </div>
+        </dl>
+      )}
+    </div>
+  );
+}
+
 function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
   // Schedule rows only know "this team vs opponent"; the breakdown modal wants
   // the game-card shape (away/home), so rebuild it from the row's orientation.
@@ -794,6 +1017,12 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
               onClick={() => setModalTab("schedule")}
             >
               Schedule
+            </button>
+            <button
+              className={`modal-tab ${modalTab === "summary" ? "active" : ""}`}
+              onClick={() => setModalTab("summary")}
+            >
+              Summary
             </button>
           </div>
         )}
@@ -949,6 +1178,8 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
             )}
           </div>
         )}
+
+        {!loading && modalTab === "summary" && <TeamSummary team={team} />}
       </div>
     </div>
   );
