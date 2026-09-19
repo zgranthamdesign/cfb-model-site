@@ -1596,9 +1596,13 @@ export default function Home() {
       if (!groups[key]) groups[key] = [];
       groups[key].push(row);
     }
-    return Object.entries(groups).sort(([, rowsA], [, rowsB]) => {
-      return new Date(rowsA[0].start_date) - new Date(rowsB[0].start_date);
-    });
+    // Games within a day by kickoff time; the API returns them in database
+    // order, which scattered noon games after 3:30 kickoffs.
+    const kickoff = r => new Date(r.start_date).getTime() || 0;
+    for (const rows of Object.values(groups)) {
+      rows.sort((a, b) => kickoff(a) - kickoff(b) || (a.home_team || "").localeCompare(b.home_team || ""));
+    }
+    return Object.entries(groups).sort(([, rowsA], [, rowsB]) => kickoff(rowsA[0]) - kickoff(rowsB[0]));
   }, [filteredLines]);
 
   return (
