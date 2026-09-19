@@ -2577,3 +2577,107 @@ th {
   opacity: 1;
   text-decoration: underline;
 }
+
+/* Season stats (box-score numbers) in the Summary tab. */
+.ss-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 5px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ss-row.ss-head {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #676960;
+}
+
+.ss-row.ss-head > span:not(:first-child),
+.ss-cell {
+  text-align: right;
+  justify-content: flex-end;
+}
+
+.ss-group {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #17462f;
+  padding: 10px 0 4px;
+}
+
+.bd-box .ts-band + .ss-group {
+  padding-top: 2px;
+}
+
+.ss-group + .ss-row {
+  border-top: none;
+}
+
+.ss-label {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ss-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ss-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ts-rank {
+  min-width: 30px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #ecece8;
+  color: #676960;
+}
+
+.ts-rank::before {
+  content: "#";
+}
+
+.ts-rank.is-strong {
+  background: #eaf3de;
+  color: #27500a;
+}
+
+.ts-rank.is-weak {
+  background: #fcebeb;
+  color: #791f1f;
+}
+
+.ss-margin {
+  margin-top: 6px;
+}
+
+@media (max-width: 600px) {
+  .ss-row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+    font-size: 11.5px;
+  }
+
+  .ss-label {
+    font-size: 11px;
+  }
+}

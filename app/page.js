@@ -1070,6 +1070,73 @@ function StoryList({ items, empty }) {
   );
 }
 
+// Season stats: the traditional box-score numbers with FBS ranks.
+function RankChip({ side }) {
+  if (!side?.rank) return null;
+  const tone = side.pct == null ? "" : side.pct >= 70 ? " is-strong" : side.pct <= 30 ? " is-weak" : "";
+  return <span className={`ts-rank${tone}`}>{side.rank}</span>;
+}
+
+// Phone labels, where the full ones get cut off.
+const SS_SHORT = {
+  rush_yards: "Rush yds / game",
+  pass_yards: "Pass yds / game",
+  third_pct: "3rd down %",
+  giveaways: "TO (lost / forced)",
+  sacks: "Sacks (allow / made)",
+  tfl: "TFL (allow / made)",
+  penalty_yards: "Penalty yds / game",
+};
+
+function SeasonStats({ stats }) {
+  if (!stats) return null;
+  const margin = stats.turnover_margin;
+  return (
+    <section className="bd-box ts-box">
+      <div className="ss-row ss-head ts-band">
+        <span className="bd-section-title">Season stats</span>
+        <span>Offense</span>
+        <span>Defense</span>
+      </div>
+      {stats.groups.map(g => (
+        <Fragment key={g.title}>
+          <div className="ss-group">{g.title}</div>
+          {g.rows.map(r => (
+            <div className="ss-row" key={r.key}>
+              <span className="ss-label">
+                {SS_SHORT[r.key] ? (
+                  <><span className="label-full">{r.label}</span><span className="label-short">{SS_SHORT[r.key]}</span></>
+                ) : r.label}
+              </span>
+              {["off", "def"].map(side => (
+                <span className="ss-cell" key={side}>
+                  <span className="ss-value">{r[side].value}</span>
+                  <RankChip side={r[side]} />
+                </span>
+              ))}
+            </div>
+          ))}
+        </Fragment>
+      ))}
+      <div className="ss-row ss-margin">
+        <span className="ss-label">
+          <span className="label-full">Turnover margin per game</span>
+          <span className="label-short">TO margin / game</span>
+        </span>
+        <span className="ss-cell">
+          <span className={`ss-value ${margin > 0 ? "ts-up" : margin < 0 ? "ts-down" : ""}`}>{signed(margin)}</span>
+        </span>
+        <span />
+      </div>
+      <p className="ts-footnote">
+        {stats.games} FBS game{stats.games === 1 ? "" : "s"}. Official box-score numbers, the same as
+        ESPN: sacks count as runs, and garbage time is included. Ranks are among FBS teams; green is
+        top 30%, red bottom 30%.
+      </p>
+    </section>
+  );
+}
+
 // Summary tab: the season-to-date profile from sync_team_profiles.py.
 function TeamSummary({ team }) {
   const [state, setState] = useState({ loading: true });
@@ -1145,6 +1212,8 @@ function TeamSummary({ team }) {
           </div>
         </div>
       </section>
+
+      <SeasonStats stats={d.season_stats} />
 
       {ledger && ledger.games?.length > 0 && (
         <section className="bd-box ts-box">
