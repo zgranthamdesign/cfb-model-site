@@ -199,20 +199,19 @@ function isLive(row, now = Date.now()) {
   return now >= kickoff && now < kickoff + LIVE_WINDOW_MS;
 }
 
-// EXPECTED · HALFTIME row: the first half re-graded, from
-// sync_live_expected.py, next to the score at the half. A frozen snapshot:
-// nothing in it changes after halftime, so it reads the same whenever it's
-// viewed. Replaced by the post-game EXPECTED row once the game is re-graded.
-function HalftimeExpectedRow({ row, onOpen }) {
+// HALF row (live games after halftime): the first half's expected score,
+// the actual halftime score, and the projected final - one row, all frozen
+// at the half so none of it goes stale.
+function HalfRow({ row, onOpen }) {
   const half = row.halftime;
-  if (!half || half.away_expected == null || half.home_expected == null) return null;
-  const open = () => onOpen && onOpen({ ...row, live_breakdown: true });
+  const proj = half.projected_final;
+  const open = () => onOpen(row, "halftime");
   return (
     <div
       className="game-card-footer-row game-card-expected-row is-clickable"
       role="button"
       tabIndex={0}
-      aria-label={`See why the halftime expected score is ${row.away_team} ${fmtInt(half.away_expected)}, ${row.home_team} ${fmtInt(half.home_expected)}. Halftime score ${half.away_score} to ${half.home_score}.`}
+      aria-label={`Halftime: expected ${row.away_team} ${fmtInt(half.away_expected)}, ${row.home_team} ${fmtInt(half.home_expected)}. Open the game details.`}
       onClick={open}
       onKeyDown={e => {
         if (e.key === "Enter" || e.key === " ") {
@@ -222,34 +221,31 @@ function HalftimeExpectedRow({ row, onOpen }) {
       }}
     >
       <span className="stat-label-meta">
-        <span className="label-full">Expected Halftime Score</span>
-        <span className="label-short">Exp Half</span>
+        <span className="label-full">Halftime</span>
+        <span className="label-short">Half</span>
       </span>
       <span className="game-card-picks-value">
-        <span className="team-score"><TeamName name={row.away_team} phone="abbr" /> <span className="num">{fmtInt(half.away_expected)}</span></span>
-        <span className="team-score"><TeamName name={row.home_team} phone="abbr" /> <span className="num">{fmtInt(half.home_expected)}</span></span>
-        {half.away_score != null && half.home_score != null && (
-          <span className="halftime-actual num">({half.away_score}–{half.home_score})</span>
+        <span className="team-score"><TeamName name={row.away_team} always="abbr" /> <span className="num">{fmtInt(half.away_expected)}</span></span>
+        <span className="team-score"><TeamName name={row.home_team} always="abbr" /> <span className="num">{fmtInt(half.home_expected)}</span></span>
+        <span className="halftime-actual num">({half.away_score}–{half.home_score})</span>
+        {proj && (
+          <span className="half-proj">
+            Final <span className="num">{proj.away}–{proj.home}</span>
+          </span>
         )}
-        <span className="market-hover expected-hover hide-on-phone">
-          <span className="market-hover-icon">ⓘ</span>
-          <div className="market-tooltip expected-tooltip">
-            <div className="market-tooltip-header">Halftime expected score</div>
-            <p>
-              What the first half was worth based on how both teams played, built
-              the same way as the post-game expected score. The score in
-              parentheses is the actual score at the half.
-            </p>
-            <p>
-              A first half is a small sample, roughly five drives each. Treat
-              gaps under about 3 points per team as noise.
-            </p>
-          </div>
-        </span>
         <span className="material-symbols-rounded expected-chevron" aria-hidden="true">chevron_right</span>
       </span>
     </div>
   );
+}
+
+// The card's one details row, chosen by the game's state: the post-game
+// expected score once graded, the halftime read while live, otherwise the
+// matchup. Each opens the game details screen on the matching tab.
+function DetailsRow({ row, onOpen }) {
+  if (row.away_expected_score != null) return <ExpectedRow row={row} onOpen={r => onOpen(r, "final")} />;
+  if (row.halftime?.home_expected != null) return <HalfRow row={row} onOpen={onOpen} />;
+  return <MatchupRow row={row} onOpen={r => onOpen(r, "matchup")} />;
 }
 
 // EXPECTED row: what each team's play was worth, from sync_expected_scores.py.
@@ -308,7 +304,7 @@ function ExpectedRow({ row, onOpen }) {
   );
 }
 
-function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown, onOpenMatchup }) {
+function GameCard({ row, totalTeams, onSelectTeam, onOpenDetails }) {
   // Games against FCS opponents have no market or model lines. Rendering the
   // grid anyway produced four columns of dashes that looked broken, so the
   // grid only shows when at least one value exists.
@@ -412,9 +408,7 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenBreakdown, onOpenMatchu
           </span>
         </div>
       )}
-      <ExpectedRow row={row} onOpen={onOpenBreakdown} />
-      <HalftimeExpectedRow row={row} onOpen={onOpenBreakdown} />
-      <MatchupRow row={row} onOpen={onOpenMatchup} />
+      <DetailsRow row={row} onOpen={onOpenDetails} />
       </div>
       )}
     </div>
@@ -704,7 +698,7 @@ const MU_SHORT = { moving: "Moving ball", run: "Run game", pass: "Pass game", sc
 
 // Head-to-head screen: both teams' profiles set against each other by
 // possession, with plain-language things to look for. From /api/matchup.
-function MatchupPanel({ row, onClose }) {
+function MatchupBody({ row }) {
   const [state, setState] = useState({ loading: true });
   const names = useContext(ShortNamesContext);
 
@@ -725,15 +719,7 @@ function MatchupPanel({ row, onClose }) {
   const abbr = team => names.abbr[team] || team;
 
   return (
-    <div className="stats-overlay" onClick={onClose}>
-      <div className="stats-panel breakdown-panel" onClick={e => e.stopPropagation()}>
-        <div className="stats-panel-header">
-          <div className="breakdown-title">
-            <h2>Matchup</h2>
-            <div className="breakdown-subtitle">{row.away_team} @ {row.home_team}</div>
-          </div>
-          <button className="stats-panel-close" onClick={onClose} aria-label="Close">×</button>
-        </div>
+    <>
 
         {state.loading && <div className="loading">Loading matchup...</div>}
         {state.error && <div className="empty">{state.error}.</div>}
@@ -846,12 +832,54 @@ function MatchupPanel({ row, onClose }) {
             </p>
           </>
         )}
+    </>
+  );
+}
+
+// One screen per game with three tabs: the pregame matchup, the halftime
+// read, and the post-game breakdown. Tabs that don't exist yet (no halftime
+// snapshot, game not graded) are shown greyed out.
+function GameDetailsPanel({ row, initialTab, onClose }) {
+  const tabs = [
+    { key: "matchup", label: "Matchup", enabled: !(row.home_is_fcs || row.away_is_fcs) },
+    { key: "halftime", label: "Halftime", enabled: row.halftime?.home_expected != null },
+    { key: "final", label: "Final breakdown", enabled: row.away_expected_score != null || !!row.from_schedule },
+  ];
+  const [tab, setTab] = useState(initialTab);
+  const status = row.completed ? "Final" : isLive(row) ? "Live" : fmtTime(row.start_date);
+
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="stats-panel breakdown-panel" onClick={e => e.stopPropagation()}>
+        <div className="stats-panel-header">
+          <div className="breakdown-title">
+            <h2>{row.away_team} @ {row.home_team}</h2>
+            <div className="breakdown-subtitle">{status}</div>
+          </div>
+          <button className="stats-panel-close" onClick={onClose} aria-label="Close">×</button>
+        </div>
+        <div className="modal-tabs">
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              className={`modal-tab${tab === t.key ? " active" : ""}${t.enabled ? "" : " is-disabled"}`}
+              disabled={!t.enabled}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {tab === "matchup" && <MatchupBody row={row} />}
+        {tab === "halftime" && <BreakdownBody key="half" row={{ ...row, live_breakdown: true }} />}
+        {tab === "final" && <BreakdownBody key="final" row={{ ...row, live_breakdown: false }} />}
       </div>
     </div>
   );
 }
 
-function GameBreakdownPanel({ row, onClose }) {
+function BreakdownBody({ row }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   // Label of the row whose explainer is open; one at a time.
@@ -876,24 +904,24 @@ function GameBreakdownPanel({ row, onClose }) {
   const league = d?.league;
 
   return (
-    <div className="stats-overlay" onClick={onClose}>
-      <div className="stats-panel breakdown-panel" onClick={e => e.stopPropagation()}>
-        <div className="stats-panel-header">
-          <div className="breakdown-title">
-            <h2>Expected Score</h2>
-            <div className="breakdown-subtitle">
-              {row.away_team} @ {row.home_team}
-              {row.live_breakdown && " · first half"}
-            </div>
-          </div>
-          <button className="stats-panel-close" onClick={onClose} aria-label="Close">×</button>
-        </div>
+    <>
 
         {!data && !error && <div className="loading">Loading breakdown...</div>}
         {error && <div className="empty">{error}</div>}
 
         {d && (
           <>
+            {row.live_breakdown && row.halftime?.projected_final && (
+              <div className="bd-projection">
+                <span className="stat-label-meta">Projected final</span>
+                <span>
+                  <TeamName name={row.away_team} phone="abbr" /> {row.halftime.projected_final.away}
+                  {" · "}
+                  <TeamName name={row.home_team} phone="abbr" /> {row.halftime.projected_final.home}
+                  <span className="bd-projection-note"> ±{row.halftime.projected_final.uncertainty}</span>
+                </span>
+              </div>
+            )}
             <div className="bd-summary">
               {/* Live: the halftime score the expected score is measured
                   against, not the current one. */}
@@ -1008,8 +1036,7 @@ function GameBreakdownPanel({ row, onClose }) {
             </p>
           </>
         )}
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -1578,8 +1605,8 @@ export default function Home() {
   const [statsData, setStatsData] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [recordData, setRecordData] = useState(null);
-  const [breakdownRow, setBreakdownRow] = useState(null);
-  const [matchupRow, setMatchupRow] = useState(null);
+  // Game details screen: which game, and which tab it opened on.
+  const [details, setDetails] = useState(null);
   const [shortNames, setShortNames] = useState({ short: {}, abbr: {} });
 
   function openTeamStats(name) {
@@ -1754,7 +1781,7 @@ export default function Home() {
               <h2 className="date-heading">{fmtDateHeading(rows[0].start_date)}</h2>
               <div className="game-grid">
                 {rows.map(row => (
-                  <GameCard key={row.game_id} row={row} totalTeams={totalTeams} onSelectTeam={openTeamStats} onOpenBreakdown={setBreakdownRow} onOpenMatchup={setMatchupRow} />
+                  <GameCard key={row.game_id} row={row} totalTeams={totalTeams} onSelectTeam={openTeamStats} onOpenDetails={(r, tab) => setDetails({ row: r, tab })} />
                 ))}
               </div>
             </div>
@@ -1854,17 +1881,19 @@ export default function Home() {
           data={statsData}
           loading={statsLoading}
           onClose={closeTeamStats}
-          onOpenBreakdown={setBreakdownRow}
+          onOpenBreakdown={r => setDetails({ row: { ...r, from_schedule: true }, tab: "final" })}
         />
       )}
 
       {/* Rendered after the team panel so it stacks on top when opened from a
           team's schedule; closing it returns to that schedule. */}
-      {breakdownRow && (
-        <GameBreakdownPanel row={breakdownRow} onClose={() => setBreakdownRow(null)} />
-      )}
-      {matchupRow && (
-        <MatchupPanel row={matchupRow} onClose={() => setMatchupRow(null)} />
+      {details && (
+        <GameDetailsPanel
+          key={`${details.row.game_id}-${details.tab}`}
+          row={details.row}
+          initialTab={details.tab}
+          onClose={() => setDetails(null)}
+        />
       )}
     </div>
     </ShortNamesContext.Provider>

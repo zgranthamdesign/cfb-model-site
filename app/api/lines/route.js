@@ -7,6 +7,38 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Projected final score at halftime: the halftime score plus a projected
+// second half. Fitted on 2,994 FBS games from 2022-2025 by
+// backtest_second_half.py (ordinary least squares, 5-fold CV). The second
+// half is driven mostly by the pregame line; what happened in the first
+// half barely carries over, and a big halftime lead trims second-half
+// scoring slightly. Typical miss on the second half: about 8 points.
+const H2_TOTAL = { intercept: 6.307, pregameTotal: 0.343, h1Total: 0.124, h1Expected: -0.038, h1Lead: -0.114 };
+const H2_MARGIN = { intercept: -0.027, pregameMargin: 0.469, h1Margin: -0.086, h1ExpectedMargin: 0.047 };
+
+function projectFinal(half, line) {
+  const total = line.market_total ?? line.model_total;
+  const spread = line.market_spread ?? line.model_spread;
+  if (total == null || spread == null || half.home_score == null || half.away_score == null) return null;
+  const expHome = Number(half.home_expected);
+  const expAway = Number(half.away_expected);
+  const h1Margin = half.home_score - half.away_score;
+  const h2Total = H2_TOTAL.intercept
+    + H2_TOTAL.pregameTotal * total
+    + H2_TOTAL.h1Total * (half.home_score + half.away_score)
+    + H2_TOTAL.h1Expected * (expHome + expAway)
+    + H2_TOTAL.h1Lead * Math.abs(h1Margin);
+  const h2Margin = H2_MARGIN.intercept
+    + H2_MARGIN.pregameMargin * -spread
+    + H2_MARGIN.h1Margin * h1Margin
+    + H2_MARGIN.h1ExpectedMargin * (expHome - expAway);
+  return {
+    home: Math.round(half.home_score + (h2Total + h2Margin) / 2),
+    away: Math.round(half.away_score + (h2Total - h2Margin) / 2),
+    uncertainty: 8,
+  };
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const season = parseInt(searchParams.get("season") || "2026", 10);
@@ -125,8 +157,9 @@ export async function GET(request) {
     const away = teamById[g.away_team_id];
     const line = lineByGame[g.game_id] || {};
     const expected = g.completed ? expectedByGame[g.game_id] : null;
-    // Shown until the post-game re-grade exists, which then takes the row.
-    const halftime = expected ? null : halftimeByGame[g.game_id] || null;
+    // Kept after the game is graded too: the card switches to the post-game
+    // row, but the game details screen still offers the Halftime tab.
+    const halftime = halftimeByGame[g.game_id] || null;
     const venue = venueById[g.venue_id];
     const venue_name = venue?.name || g.venue || null;
     const venue_location = venue && venue.city && venue.state ? `${venue.city}, ${venue.state}` : null;
@@ -272,7 +305,7 @@ export async function GET(request) {
       away_expected_score: expected?.away_expected ?? null,
       expected_garbage_time: expected?.garbage_time ?? false,
       expected_overtime: expected?.overtime ?? false,
-      halftime,
+      halftime: halftime ? { ...halftime, projected_final: projectFinal(halftime, line) } : null,
     };
   });
 
