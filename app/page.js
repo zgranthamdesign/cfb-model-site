@@ -1429,7 +1429,7 @@ function TeamStatsPanel({ team, data, loading, onClose, onOpenBreakdown }) {
                   ["sp_plus", "SP+"],
                   ["fpi", "FPI"],
                   ["elo", "Elo"],
-                  ["srs", "SRS"],
+                  ["custom", "Grantham"],
                 ].map(([key, label]) => {
                   const r = data.source_rankings[key];
                   return (

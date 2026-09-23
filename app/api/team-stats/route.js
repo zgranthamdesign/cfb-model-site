@@ -42,7 +42,9 @@ function rankOf(value, allValues, higherIsBetter) {
 const SOURCE_FIELDS = {
   our_model: "our_model_z",
   elo: "elo_z",
-  srs: "srs_z",
+  // Zach's own ratings, loaded from his sheet by load_custom_ratings.py.
+  // Replaced SRS, which CFBD only publishes after a season ends.
+  custom: "custom_z",
 };
 
 function computeSourceRanks(allRatings, teamId) {
@@ -145,7 +147,7 @@ export async function GET(request) {
 
   const { data: allRatings } = await supabase
     .from("composite_ratings")
-    .select("team_id, our_model_z, elo_z, srs_z")
+    .select("team_id, our_model_z, elo_z, custom_z")
     .eq("season", season)
     .eq("week", week);
   const source_rankings = computeSourceRanks(allRatings || [], teamRow.team_id);
