@@ -1772,6 +1772,35 @@ th {
   color: var(--text-faint);
 }
 
+/* "Expected: ARMY 8 – TEM 11" and "Real: 7–7" each hold together as one
+   unit, so a narrow card wraps between the two groups rather than in the
+   middle of a score. */
+.half-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.half-group + .half-group {
+  margin-left: 4px;
+}
+
+.half-group-label {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.half-dash {
+  color: var(--text-faint);
+}
+
+/* The 8px gap between the two teams in an expected row would push these
+   apart from their dash; the group's own 4px gap already spaces them. */
+.game-card-expected-row .half-group .team-score + .team-score {
+  margin-left: 0;
+}
+
 /* A team and its number never split across lines. */
 .team-score {
   white-space: nowrap;

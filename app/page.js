@@ -107,6 +107,10 @@ function rankColors(rank, total) {
   };
 }
 
+// score is the pregame predicted score: shown on its own until the game is
+// final, then in parentheses next to the final. It deliberately does not
+// track the live score - the top of the card is the model's pregame number
+// for the whole game, and the halftime read belongs in the footer row.
 function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, record, isFcs, onSelect }) {
   const rankStyle = rankColors(rank, totalTeams);
   return (
@@ -199,12 +203,14 @@ function isLive(row, now = Date.now()) {
   return now >= kickoff && now < kickoff + LIVE_WINDOW_MS;
 }
 
-// HALF row (live games after halftime): the first half's expected score,
-// the actual halftime score, and the projected final - one row, all frozen
-// at the half so none of it goes stale.
+// HALF row (live games after halftime): what the first half was worth, next
+// to what the scoreboard actually said at the half, each behind its own
+// label. The projected final moved to the halftime tab of the game details -
+// one row carrying expected, actual and projected at once read as three
+// unlabeled pairs of numbers. Everything here is frozen at the half so none
+// of it goes stale between runs of sync_live_expected.py.
 function HalfRow({ row, onOpen }) {
   const half = row.halftime;
-  const proj = half.projected_final;
   const open = () => onOpen(row, "halftime");
   return (
     <div
@@ -220,19 +226,21 @@ function HalfRow({ row, onOpen }) {
         }
       }}
     >
-      <span className="stat-label-meta">
-        <span className="label-full">Halftime</span>
-        <span className="label-short">Half</span>
-      </span>
+      <span className="stat-label-meta">Halftime</span>
       <span className="game-card-picks-value">
-        <span className="team-score"><TeamName name={row.away_team} always="abbr" /> <span className="num">{fmtInt(half.away_expected)}</span></span>
-        <span className="team-score"><TeamName name={row.home_team} always="abbr" /> <span className="num">{fmtInt(half.home_expected)}</span></span>
-        <span className="halftime-actual num">({half.away_score}–{half.home_score})</span>
-        {proj && (
-          <span className="half-proj">
-            Final <span className="num">{proj.away}–{proj.home}</span>
+        <span className="half-group">
+          <span className="half-group-label">
+            <span className="label-full">Expected:</span>
+            <span className="label-short">Exp:</span>
           </span>
-        )}
+          <span className="team-score"><TeamName name={row.away_team} always="abbr" /> <span className="num">{fmtInt(half.away_expected)}</span></span>
+          <span className="half-dash">–</span>
+          <span className="team-score"><TeamName name={row.home_team} always="abbr" /> <span className="num">{fmtInt(half.home_expected)}</span></span>
+        </span>
+        <span className="half-group halftime-actual">
+          <span className="half-group-label">Real:</span>
+          <span className="num">{half.away_score}–{half.home_score}</span>
+        </span>
         <span className="material-symbols-rounded expected-chevron" aria-hidden="true">chevron_right</span>
       </span>
     </div>
