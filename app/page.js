@@ -339,6 +339,7 @@ function GameCard({ row, totalTeams, onSelectTeam, onOpenDetails }) {
       <div className="game-card-header-row">
         <div className="game-card-meta">
           {isLive(row) && <span className="live-pill">Live</span>}
+          {row.completed && <span className="final-pill">Final</span>}
           {fmtTime(row.start_date)}
         </div>
         {row.venue_name && (

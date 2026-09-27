@@ -1767,6 +1767,25 @@ th {
   margin-right: 8px;
 }
 
+/* Final: the same pill as Live in blue, without the pulsing dot - nothing
+   about a finished game is still changing. */
+.final-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #175cd3;
+  color: #fff;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 3px 6px;
+  vertical-align: middle;
+  border-radius: 3px;
+  margin-right: 8px;
+}
+
 /* Actual score at the half, beside the halftime expected score. */
 .halftime-actual {
   color: var(--text-faint);
