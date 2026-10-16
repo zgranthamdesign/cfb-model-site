@@ -151,9 +151,30 @@ function TeamRow({ name, logo, rank, totalTeams, score, finalScore, completed, r
   );
 }
 
+// Books worth showing in the hover: US-facing, legal, ones you could
+// actually bet. The feed also returns European books (Unibet SE, LeoVegas,
+// Coolbet, Betsson, 1xBet…) and offshore ones (Bovada, BetOnline, BetUS,
+// LowVig, MyBookie). Those still count toward the consensus market line the
+// model is graded against - this list only controls what the tooltip lists.
+const DOMESTIC_BOOKS = new Set([
+  "DraftKings",
+  "FanDuel",
+  "BetMGM",
+  "BetRivers",
+  "Caesars",
+  "Fanatics",
+  "theScore Bet",
+  "ESPN Bet",
+  "Hard Rock Bet",
+  "betPARX",
+  "Bally Bet",
+]);
+
 function BookBreakdown({ team, books }) {
   if (!books) return null;
-  const entries = Object.entries(books).sort(([a], [b]) => a.localeCompare(b));
+  const entries = Object.entries(books)
+    .filter(([book]) => DOMESTIC_BOOKS.has(book))
+    .sort(([a], [b]) => a.localeCompare(b));
   if (entries.length === 0) return null;
   return (
     <span className="market-hover">
